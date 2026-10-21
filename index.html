@@ -1,0 +1,2991 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>*,*::before,*::after{box-sizing:border-box}[hidden]{display:none!important}html,body{margin:0;height:100%}</style>
+<title>Катящаяся сфера</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Раскладка: рабочее место инженера — слева панель ввода и результатов, справа 3D-сцена на всю высоту. */
+:root {
+  --bg: #eef1f4; --panel: #ffffff; --line: #d5dbe2; --fg: #18212b; --muted: #5b6876;
+  --accent: #d98a00; --accent-ink: #8a5600; --zone: #e9a21b; --hx: #c2410c;
+  --ok: #157a3c; --bad: #b42318; --rod: #26313d; --ground: #dfe4ea; --grid: #c3cbd4; --sphere: #3a6ea5; --contact: #d6336c; --dim: #44546a;
+  --f-ui: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --f-head: "IBM Plex Sans Condensed", "Arial Narrow", "IBM Plex Sans", sans-serif;
+  --f-num: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f151b; --panel: #161e26; --line: #2a3541; --fg: #e3e9ef; --muted: #93a1af;
+  --accent: #f2a62b; --accent-ink: #f6c46e; --zone: #f0a52a; --hx: #ff7a45;
+  --ok: #4cc77d; --bad: #ff6b5e; --rod: #c9d3dd; --ground: #1b242d; --grid: #2c3844; --sphere: #6fa3dc; --contact: #ff5c93; --dim: #a9b8c8; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f151b; --panel: #161e26; --line: #2a3541; --fg: #e3e9ef; --muted: #93a1af;
+  --accent: #f2a62b; --accent-ink: #f6c46e; --zone: #f0a52a; --hx: #ff7a45;
+  --ok: #4cc77d; --bad: #ff6b5e; --rod: #c9d3dd; --ground: #1b242d; --grid: #2c3844; --sphere: #6fa3dc; --contact: #ff5c93; --dim: #a9b8c8; color-scheme: dark }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-ui); font-size: 14px; }
+.app { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; height: 100%; }
+aside { background: var(--panel); border-right: 1px solid var(--line); overflow-y: auto;
+  padding-block: 18px 28px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: 16px;
+  display: flex; flex-direction: column; gap: 22px; min-width: 0; }
+header h1 { font-family: var(--f-head); font-weight: 600; font-size: 22px; margin: 0; letter-spacing: .01em; text-wrap: balance; }
+header p { margin: 4px 0 0; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+h2 { font-family: var(--f-head); font-weight: 600; font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted); margin: 0 0 10px; display: flex; justify-content: space-between; align-items: center; }
+section { min-width: 0; }
+.params { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+.params .wide { grid-column: 1 / -1; }
+label.f { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+input, select, button { font: inherit; color: var(--fg); }
+input[type=number], input[type=text], select {
+  background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; width: 100%; box-sizing: border-box; min-width: 0; }
+input[type=number] { font-family: var(--f-num); font-size: 13px; }
+input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tbl-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
+th { text-align: left; font-weight: 500; font-size: 11.5px; color: var(--muted); padding: 0 4px 6px; white-space: nowrap; }
+td { padding: 3px 4px; border-top: 1px solid var(--line); vertical-align: middle; }
+td.n { font-family: var(--f-num); font-size: 12.5px; text-align: right; white-space: nowrap; }
+.rods input { padding: 4px 6px; }
+.rods td:first-child input { width: 56px; font-family: var(--f-ui); font-weight: 600; }
+.rods td input[type=number] { width: 100%; min-width: 58px; }
+.rods td { padding: 3px 2px; }
+.lc { text-transform: none; }
+.equip { display: flex; flex-direction: column; gap: 10px; }
+.eq { border: 1px solid var(--line); border-radius: 8px; padding: 8px; display: flex; flex-direction: column; gap: 6px; }
+.eq .top { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.eq .top input[type=text] { flex: 1 1 120px; font-weight: 600; padding: 4px 6px; }
+.eq .top select { width: auto; padding: 4px; }
+.eq .grid6 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 6px; }
+.eq .grid6 label { display: flex; flex-direction: column; font-size: 11px; color: var(--muted); gap: 2px; }
+.eq .grid6 input { padding: 3px 6px; }
+.eq .res { font-size: 12px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.eq .chk { font-size: 12px; display: flex; gap: 4px; align-items: center; color: var(--muted); }
+.dist input { width: 90px; padding: 4px 6px; }
+.dist td.note { margin: 0; }
+details summary { cursor: pointer; font-size: 13px; color: var(--accent-ink); margin-top: 12px; }
+.build { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.brow { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: 12.5px; padding-top: 8px; border-top: 1px solid var(--line); }
+.brow b { min-width: 34px; }
+.brow select { width: auto; padding: 3px 4px; }
+.brow input { width: 76px; padding: 3px 6px; }
+.lpop { position: absolute; z-index: 5; display: flex; gap: 6px; align-items: center; padding: 6px 8px; }
+.lpop input { width: 90px; }
+.keys { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
+kbd { font-family: var(--f-num); font-size: 11px; border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--bg); color: var(--fg); }
+.pins { display: flex; flex-wrap: wrap; gap: 6px; }
+.pins .chip.frozen { background: color-mix(in srgb, var(--sphere) 18%, transparent); }
+.pins .chip { font-size: 11.5px; padding: 2px 8px; border-radius: 999px; background: color-mix(in srgb, var(--contact) 16%, transparent); color: var(--fg); }
+button.ghost { background: none; border: 1px solid var(--line); border-radius: 6px; padding: 5px 10px; cursor: pointer; font-size: 12.5px; }
+button.ghost:hover { border-color: var(--accent); color: var(--accent-ink); }
+button.x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 16px; line-height: 1; padding: 4px 6px; border-radius: 4px; }
+button.x:hover { color: var(--bad); background: var(--bg); }
+.row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.kv { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; font-size: 13px; }
+.kv span:nth-child(odd) { color: var(--muted); }
+.kv b { font-family: var(--f-num); font-weight: 500; text-align: right; }
+.pill { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 7px; border-radius: 999px; letter-spacing: .02em; }
+.pill.ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, transparent); }
+.pill.warn3 { color: var(--accent-ink); background: color-mix(in srgb, var(--accent) 18%, transparent); }
+td.muted { color: var(--muted); }
+.pill.bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+.note { font-size: 12px; color: var(--muted); line-height: 1.5; margin: 8px 0 0; }
+.formula { font-family: var(--f-num); font-size: 12px; color: var(--muted); }
+.warn { color: var(--bad); font-size: 12px; margin-top: 6px; }
+main { position: relative; min-width: 0; min-height: 0; }
+#scene { position: absolute; inset: 0; }
+#scene canvas { display: block; touch-action: none; }
+.hud { position: absolute; top: 12px; left: 12px; right: max(12px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; pointer-events: none; }
+.hud > * { pointer-events: auto; }
+.card { background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(6px); }
+.legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
+.legend i { display: inline-block; width: 18px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.views { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
+.views button { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; cursor: pointer; font-size: 12.5px; }
+.views button[aria-pressed=true] { border-color: var(--accent); color: var(--accent-ink); }
+.views { flex-direction: column; align-items: flex-end; }
+.tabs button { font-weight: 600; min-width: 64px; }
+main.planview .only3d, main.secview .only3d, main.secview .bottom, main.secview .onlyplan { display: none !important; }
+main:not(.planview) .onlyplan { display: none !important; }
+#sections { position: absolute; inset: 0; overflow-y: auto; background: var(--bg); padding: 64px max(16px, env(safe-area-inset-right, 0px)) 24px 16px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; }
+#sections[hidden] { display: none !important; }
+.sec { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; min-width: 0; }
+.sec h3 { font-family: var(--f-head); font-weight: 600; font-size: 16px; margin: 0; display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.sec h3 small { font-family: var(--f-ui); font-weight: 400; font-size: 12.5px; color: var(--muted); }
+.sec .svgwrap { overflow-x: auto; margin-top: 8px; }
+.sec svg { display: block; }
+.sec svg text { font-family: var(--f-ui); fill: var(--fg); font-size: 11.5px; }
+.sec .gnd { stroke: var(--fg); stroke-width: 1.5; }
+.sec .hxl { stroke: var(--hx); stroke-width: 1.2; stroke-dasharray: 6 4; }
+.sec .prof { fill: color-mix(in srgb, var(--zone) 30%, transparent); stroke: var(--zone); stroke-width: 1.5; }
+.sec .rod { stroke: var(--rod); stroke-width: 3; }
+.sec .sph { fill: none; stroke: var(--sphere); stroke-width: 1.5; }
+.sec .sph2 { fill: none; stroke: var(--contact); stroke-width: 1.2; stroke-dasharray: 5 4; }
+.sec .dimln { stroke: var(--dim); stroke-width: 1; }
+.sec .empty { color: var(--muted); font-size: 13px; }
+.hud .views { margin-left: auto; }
+#plan { position: absolute; inset: 0; width: 100%; height: 100%; background: var(--bg); touch-action: none; cursor: crosshair; user-select: none; }
+.xbtns { flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.keysdlg { position: absolute; inset: 0; z-index: 20; display: flex; justify-content: center; align-items: flex-start; padding: 56px 16px 16px; background: color-mix(in srgb, var(--bg) 55%, transparent); overflow-y: auto; }
+.keysdlg .card { max-width: 760px; width: 100%; background: var(--panel); padding: 14px 18px; }
+.keysdlg h2 { margin-bottom: 6px; }
+.keysdlg h3 { font-family: var(--f-head); font-size: 14px; margin: 10px 0 6px; }
+.kgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0 24px; }
+.kgrid p { margin: 0 0 6px; font-size: 13px; line-height: 1.5; }
+#keysBtn kbd { margin-left: 4px; }
+.plansvg .ul, .sec .ul { fill: none; stroke: var(--muted); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plansvg .ulg text, .sec .ulg text { fill: var(--muted); font-family: var(--f-ui); }
+.ulayers { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; padding: 6px 0; font-size: 12px; }
+.ulayers .chk { display: flex; gap: 6px; align-items: center; color: var(--fg); }
+table.rec td, table.rec th { font-size: 12.5px; }
+tr.recwarn td { background: color-mix(in srgb, var(--bad) 8%, transparent); }
+.plansvg .grid { stroke: var(--grid); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plansvg .grid.major { stroke: color-mix(in srgb, var(--grid) 60%, var(--muted)); }
+.plansvg .axis { stroke: var(--muted); stroke-width: 1.2; vector-effect: non-scaling-stroke; }
+.plansvg .r0 { fill: none; stroke: var(--dim); stroke-width: 1; stroke-dasharray: 6 4; vector-effect: non-scaling-stroke; }
+.plansvg .rx { fill: none; stroke: var(--dim); stroke-width: 1; vector-effect: non-scaling-stroke; opacity: .7; }
+.plansvg .z0 { fill: color-mix(in srgb, var(--zone) 22%, transparent); stroke: var(--zone); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.plansvg .zhx { fill: color-mix(in srgb, var(--hx) 22%, transparent); stroke: var(--hx); stroke-width: 2; vector-effect: non-scaling-stroke; fill-rule: evenodd; }
+.plansvg .dim { stroke: var(--dim); stroke-width: 1; vector-effect: non-scaling-stroke; }
+#plan text { font-family: var(--f-ui); fill: var(--fg); }
+.plansvg .dimt { fill: var(--dim); cursor: pointer; }
+.plansvg .rodc { fill: var(--rod); stroke: var(--panel); stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.plansvg .mk { stroke-width: 1.5; vector-effect: non-scaling-stroke; }
+.plansvg .halo { paint-order: stroke; stroke: var(--bg); stroke-width: 4px; stroke-linejoin: round; }
+.vgroup { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+.bottom { position: absolute; left: 12px; right: max(12px, env(safe-area-inset-right, 0px)); bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; flex-wrap: wrap; pointer-events: none; }
+.bottom > * { pointer-events: auto; }
+.readout { font-family: var(--f-num); font-size: 12px; min-width: 220px; max-width: 360px; line-height: 1.5; }
+.readout .t { font-family: var(--f-ui); color: var(--muted); font-size: 11.5px; margin-bottom: 3px; }
+.readout .st-ok { color: var(--ok); } .readout .st-bad { color: var(--bad); }
+.tool { width: 300px; max-width: 100%; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+.seg { display: grid; grid-template-columns: repeat(4, 1fr); border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { background: var(--panel); border: none; border-left: 1px solid var(--line); padding: 6px 2px; font-size: 11.5px; cursor: pointer; }
+.seg button:first-child { border-left: none; }
+.seg button[aria-pressed=true] { background: var(--accent); color: #1b1300; font-weight: 600; }
+.pane { display: flex; flex-direction: column; gap: 8px; }
+.pane[hidden] { display: none !important; }
+.pane .hint { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.45; }
+.pane label.f span { color: var(--fg); font-family: var(--f-num); }
+input[type=range] { width: 100%; accent-color: var(--accent); }
+button.play { align-self: flex-start; }
+.busy { position: absolute; right: 12px; top: 120px; font-size: 12px; color: var(--muted); }
+#scene.drag canvas { cursor: grab; }
+@media (max-width: 760px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto auto; height: auto; }
+  main { order: -1; height: auto; display: flex; flex-direction: column; }
+  #scene { position: relative; height: 62vh; inset: auto; }
+  .hud { position: absolute; }
+  .legend { display: none; }
+  .bottom { position: static; padding: 10px 0 0; flex-direction: column; align-items: stretch; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+  .tool, .readout { width: auto; max-width: none; }
+  aside { border-right: none; border-top: 1px solid var(--line); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head><body>
+
+
+<div class="app">
+  <aside>
+    <header>
+      <h1>Катящаяся сфера</h1>
+      <p>Зона защиты стержневых молниеприёмников методом катящейся сферы (СП РК 2.04-103-2013). Размеры в <span class="uname">миллиметрах</span>.</p>
+    </header>
+
+    <section>
+      <h2>Проект</h2>
+      <label class="f">Объект <input id="title" type="text" placeholder="Название объекта"></label>
+      <div class="row xbtns">
+        <button class="ghost" id="xSave" type="button" title="Ctrl+S">Сохранить проект</button>
+        <button class="ghost" id="xOpen" type="button" title="Ctrl+O">Открыть проект</button>
+        <input type="file" id="xFile" accept=".json,application/json" hidden>
+      </div>
+      <div class="row xbtns">
+        <button class="ghost" id="xDxf" type="button" title="Ctrl+E">DXF для AutoCAD</button>
+        <button class="ghost" id="xPdf" type="button" title="Ctrl+P">PDF-отчёт</button>
+        <button class="ghost" id="xXlsx" type="button">Таблицы Excel</button>
+        <button class="ghost" id="xPng" type="button">PNG вида</button>
+      </div>
+      <p class="note" id="xMsg">DXF скачивается внутри .zip: распакуйте и откройте в AutoCAD. Единица чертежа 1 мм.</p>
+    </section>
+
+    <section>
+      <h2>Подложки из AutoCAD
+        <span class="row" style="margin:0"><button class="ghost" id="ulAddPlan" type="button">+ План</button><button class="ghost" id="ulAddSec" type="button">+ Сечение</button></span></h2>
+      <input type="file" id="ulFile" accept=".dxf,.dwg" hidden>
+      <div id="ulList" class="equip"></div>
+      <p class="note" id="ulMsg" hidden></p>
+      <details class="ulhelp"><summary>Как подготовить чертёж</summary>
+        <p class="note">Браузер не читает DWG: в AutoCAD выберите «Сохранить как» → DXF (любая версия).</p>
+        <p class="note"><b>Молниеприёмник</b> — текст «М1», «М2»… рядом с окружностью, точкой или блоком стержня (до 2 м). Высоту можно дописать: «М1 H=13500».</p>
+        <p class="note"><b>Оборудование</b> — текст «E1», «E2»… (латинская E) внутри замкнутой полилинии (блок) или окружности (цилиндр). Можно дописать высоту и название: «E1 H=3500 Насосная».</p>
+        <p class="note">Остальное остаётся подложкой. Высоты читаются в единицах чертежа.</p>
+      </details>
+    </section>
+
+    <section>
+      <h2>Исходные данные</h2>
+      <div class="params">
+        <label class="f">Единицы <select id="units"><option value="mm">миллиметры</option><option value="m">метры</option></select></label>
+        <label class="f wide">Уровень защиты (радиус сферы)
+          <select id="level">
+            <option value="20">I — R = 20 м</option>
+            <option value="30">II — R = 30 м</option>
+            <option value="45">III — R = 45 м</option>
+            <option value="60">IV — R = 60 м</option>
+            <option value="custom">Свой радиус</option>
+          </select>
+        </label>
+        <label class="f">Радиус сферы R, <span class="u">м</span> <input id="R" type="number" class="len"></label>
+        <label class="f">Высота проверки hx, <span class="u">м</span> <input id="hx" type="number" class="len" min="0"></label>
+      </div>
+    </section>
+
+    <section>
+      <h2>Молниеприёмники <button class="ghost" id="add" type="button">+ Добавить</button></h2>
+      <div class="tbl-wrap">
+        <table class="rods">
+          <thead><tr><th>Имя</th><th>X, <span class="u">м</span></th><th>Y, <span class="u">м</span></th><th>H, <span class="u">м</span></th><th></th></tr></thead>
+          <tbody id="rods"></tbody>
+        </table>
+      </div>
+      <div class="row"><button class="ghost" id="sample" type="button">Вернуть пример: скважина 171-1</button></div>
+      <div id="rodwarn" class="warn" hidden></div>
+    </section>
+
+    <section>
+      <h2>Расстояния между стержнями</h2>
+      <div class="tbl-wrap"><table class="dist">
+        <thead><tr><th>Пара</th><th>L, <span class="u">м</span></th><th></th></tr></thead>
+        <tbody id="dists"></tbody>
+      </table></div>
+      <p class="note">При вводе L первый стержень пары стоит на месте, второй сдвигается вдоль линии между ними. На виде сверху L можно ввести кликом по подписи размера.</p>
+      <details id="buildBox">
+        <summary>Построить по расстояниям</summary>
+        <div id="buildRows" class="build"></div>
+        <div class="row"><button class="ghost" id="buildGo" type="button">Построить</button></div>
+        <div id="buildMsg" class="warn" hidden></div>
+        <p class="note">Первый стержень ставится в начало координат, второй откладывается по оси X, каждый следующий находится по расстояниям до двух уже построенных. «Слева» и «справа» считаются по направлению от первого опорного стержня ко второму.</p>
+      </details>
+    </section>
+
+    <section>
+      <h2>Оборудование
+        <span class="row" style="margin:0"><button class="ghost" id="addBox" type="button">+ Блок</button><button class="ghost" id="addCyl" type="button">+ Цилиндр</button></span></h2>
+      <div id="equip" class="equip"></div>
+      <p class="note">Проверка идёт по всей крыше объекта с шагом 500 мм: защищён, если ни одно положение сферы не опускается ниже его верха. Объект с флажком «молниеприёмник» (металлический резервуар, ёмкость) сам принимает удар: сфера опирается на него, и он расширяет зону.</p>
+    </section>
+
+    <section>
+      <h2>Одиночный стержень</h2>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Имя</th><th style="text-align:right">r0, <span class="u">м</span></th><th style="text-align:right">rx, <span class="u">м</span></th></tr></thead>
+        <tbody id="single"></tbody>
+      </table></div>
+      <p class="formula">r0 = √(H(2R − H)), rx = r0 − √(hx(2R − hx))</p>
+    </section>
+
+    <section>
+      <h2>Провис между парами</h2>
+      <div class="tbl-wrap"><table>
+        <thead><tr><th>Разрез</th><th>Пара</th><th style="text-align:right">L, <span class="u">м</span></th><th style="text-align:right">hc, <span class="u">м</span></th><th style="text-align:right" title="Справочно: защищённая высота по 3D-огибающей в середине пролёта">3D, <span class="u">м</span></th><th></th></tr></thead>
+        <tbody id="pairs"></tbody>
+      </table></div>
+      <p class="formula">hc = H − (R − √(R² − (L/2)²))</p>
+      <p class="note">Основная проверка: классический провис в плоскости пары, условие hc ≥ hx. Колонка «3D» справочная: защищённая высота в середине пролёта по реальной огибающей, когда сфера может подкатиться сбоку и коснуться земли. Если она ниже hx, пара помечается жёлтым. Для стержней разной высоты hc считается по сфере, опёртой на обе вершины.</p>
+    </section>
+
+    <section>
+      <h2><span>Зона на высоте <span class="lc">hx</span></span></h2>
+      <div class="kv">
+        <span>Площадь зоны</span><b id="area">—</b>
+        <span>Контуров</span><b id="loops">—</b>
+      </div>
+      <p class="note">Площадь по 3D-модели: контур зоны на hx с вогнутыми дугами радиусом √(hx(2R − hx)) между стержнями.</p>
+    </section>
+  </aside>
+
+  <main>
+    <div id="scene"></div>
+    <svg id="plan" class="plansvg" hidden aria-label="План зоны защиты"></svg>
+    <div id="sections" hidden></div>
+    <div class="hud">
+      <div class="card legend only3d">
+        <span><i style="background:var(--zone);opacity:.6"></i>Граница зоны защиты</span>
+        <span><i style="background:var(--hx)"></i>Зона на высоте hx</span>
+        <span><i style="background:var(--sphere);opacity:.5"></i>Катящаяся сфера (красная — врезается)</span>
+        <span><i style="background:var(--contact)"></i>Точки касания</span>
+      </div>
+      <div class="views">
+        <div class="vgroup"><button type="button" id="keysBtn" title="Горячие клавиши (?)">Клавиши <kbd>?</kbd></button></div>
+        <div class="vgroup tabs" role="group" aria-label="Вид">
+          <button type="button" id="tab3d" aria-pressed="true">3D</button>
+          <button type="button" id="tabPlan" aria-pressed="false">План</button>
+          <button type="button" id="tabSec" aria-pressed="false">Разрезы</button>
+        </div>
+        <div class="vgroup onlyplan">
+          <button type="button" id="pCut" aria-pressed="false">Разрез по двум точкам</button>
+          <button type="button" id="pFit">Вписать</button>
+          <button type="button" id="pIn" aria-label="Крупнее">+</button>
+          <button type="button" id="pOut" aria-label="Мельче">−</button>
+        </div>
+        <div class="vgroup only3d">
+          <button type="button" id="vIso">Изометрия</button>
+          <button type="button" id="vTop">Сверху</button>
+          <button type="button" id="vFront">Спереди</button>
+        </div>
+        <div class="vgroup only3d">
+          <button type="button" id="tZone" aria-pressed="true">Зона</button>
+          <button type="button" id="tPlane" aria-pressed="false">Плоскость hx</button>
+          <button type="button" id="tCircles" aria-pressed="false">Круги r0, rx</button>
+          <button type="button" id="tDims" aria-pressed="true">Размеры</button>
+          <button type="button" id="tDrag" aria-pressed="false">Двигать стержни</button>
+        </div>
+      </div>
+    </div>
+    <div class="bottom">
+      <div class="card readout" id="readout">
+        <div class="t" id="roT">Наведите курсор на землю</div>
+        <div id="ro">X —, Y —</div>
+      </div>
+      <div class="card tool only3d">
+        <div class="seg" role="group" aria-label="Режим сферы">
+          <button type="button" data-mode="free" aria-pressed="true">Свободно</button>
+          <button type="button" data-mode="two" aria-pressed="false">2 стержня</button>
+          <button type="button" data-mode="one" aria-pressed="false">1 стержень</button>
+          <button type="button" data-mode="orbit" aria-pressed="false">Обкат зоны</button>
+        </div>
+        <div class="pane" id="pFree">
+          <p class="hint">Сфера опускается над курсором. Клик по земле ставит метку замера.</p>
+          <p class="keys"><kbd>F</kbd> закрепить за стержнем под курсором (или двойной клик по стержню) · <kbd>G</kbd> к земле · <kbd>Esc</kbd> снять последнее · <kbd>Backspace</kbd> снять все · <kbd>H</kbd> отцепить сферу от курсора и прицепить обратно</p>
+          <div class="pins" id="pins"></div>
+          <div class="row" style="margin-top:0">
+            <button type="button" class="ghost" id="pinGround">Закрепить к земле</button>
+            <button type="button" class="ghost" id="pinPop">Снять последнее</button>
+            <button type="button" class="ghost" id="pinFreeze" aria-pressed="false">Отцепить от курсора (H)</button>
+            <button type="button" class="ghost" id="clearMarks">Очистить замеры</button>
+          </div>
+        </div>
+        <div class="pane" id="pTwo" hidden>
+          <label class="f">Пара <select id="twoPair"></select></label>
+          <label class="f">Положение: <span id="twoPosV">над пролётом</span>
+            <input type="range" id="twoPos" min="-100" max="100" step="1" value="0"></label>
+          <button type="button" class="ghost play" id="twoPlay">▶ Перекатить</button>
+        </div>
+        <div class="pane" id="pOne" hidden>
+          <label class="f">Молниеприёмник <select id="oneRod"></select></label>
+          <label class="f">Азимут: <span id="oneAzV">0°</span>
+            <input type="range" id="oneAz" min="0" max="359" step="1" value="210"></label>
+          <label class="f">Положение: <span id="onePosV">касается земли</span>
+            <input type="range" id="onePos" min="0" max="100" step="1" value="0"></label>
+          <button type="button" class="ghost play" id="onePlay">▶ Обкатить вокруг</button>
+        </div>
+        <div class="pane" id="pOrbit" hidden>
+          <p class="hint">Сфера катится по земле вокруг всей группы и касается крайних молниеприёмников.</p>
+          <label class="f">Скорость <input type="range" id="orbSpeed" min="2" max="30" step="1" value="10"></label>
+          <button type="button" class="ghost play" id="orbPlay">▶ Пуск</button>
+        </div>
+      </div>
+    </div>
+    <div class="busy" id="busy" hidden>Расчёт…</div>
+    <div class="keysdlg" id="recDlg" hidden role="dialog" aria-label="Распознанные объекты">
+      <div class="card" style="max-width:900px">
+        <h2>Найдено на подложке <button class="x" id="recClose" type="button" aria-label="Закрыть">×</button></h2>
+        <p class="note" id="recInfo" style="margin:0 0 8px"></p>
+        <div class="tbl-wrap" style="max-height:50vh;overflow:auto"><table class="rec">
+          <thead><tr><th><input type="checkbox" id="recAll" checked aria-label="Все"></th><th>Тип</th><th>Имя</th><th style="text-align:right">X</th><th style="text-align:right">Y</th><th style="text-align:right">Размер</th><th style="text-align:right">H</th><th>Примечание</th></tr></thead>
+          <tbody id="recBody"></tbody></table></div>
+        <div class="params" style="margin-top:10px">
+          <label class="f">H стержней без высоты, <span class="u">мм</span><input type="number" id="recRodH" class="len"></label>
+          <label class="f">H оборудования без высоты, <span class="u">мм</span><input type="number" id="recEqH" class="len"></label>
+        </div>
+        <label class="chk" style="display:flex;gap:6px;margin-top:8px;font-size:13px"><input type="checkbox" id="recReplace"> заменить все стержни и оборудование проекта (иначе совпадающие по имени обновятся, новые добавятся)</label>
+        <div class="row"><button class="ghost" id="recApply" type="button">Перенести в проект</button></div>
+      </div>
+    </div>
+    <div class="keysdlg" id="keysDlg" hidden role="dialog" aria-label="Горячие клавиши">
+      <div class="card">
+        <h2>Горячие клавиши <button class="x" id="keysClose" type="button" aria-label="Закрыть">×</button></h2>
+        <div class="kgrid">
+          <div><h3>Общие</h3>
+            <p><kbd>1</kbd> <kbd>2</kbd> <kbd>3</kbd> вкладки 3D, План, Разрезы</p>
+            <p><kbd>Ctrl</kbd>+<kbd>Z</kbd> отменить, <kbd>Ctrl</kbd>+<kbd>Y</kbd> вернуть</p>
+            <p><kbd>Ctrl</kbd>+<kbd>S</kbd> сохранить проект</p>
+            <p><kbd>Ctrl</kbd>+<kbd>O</kbd> открыть проект</p>
+            <p><kbd>Ctrl</kbd>+<kbd>E</kbd> DXF, <kbd>Ctrl</kbd>+<kbd>P</kbd> PDF-отчёт</p>
+            <p><kbd>N</kbd> добавить молниеприёмник</p>
+            <p><kbd>?</kbd> или <kbd>F1</kbd> эта справка, <kbd>Esc</kbd> закрыть</p>
+          </div>
+          <div><h3>3D-вид</h3>
+            <p><kbd>I</kbd> изометрия, <kbd>T</kbd> сверху, <kbd>V</kbd> спереди</p>
+            <p><kbd>Z</kbd> зона, <kbd>X</kbd> плоскость hx, <kbd>C</kbd> круги r0, rx</p>
+            <p><kbd>D</kbd> размеры, <kbd>M</kbd> двигать стержни</p>
+            <p><kbd>Q</kbd> <kbd>W</kbd> <kbd>E</kbd> <kbd>R</kbd> режимы сферы: свободно, 2 стержня, 1 стержень, обкат</p>
+            <p><kbd>Пробел</kbd> пуск и стоп анимации</p>
+          </div>
+          <div><h3>Сфера (режим «Свободно»)</h3>
+            <p><kbd>F</kbd> закрепить за стержнем под курсором</p>
+            <p><kbd>G</kbd> закрепить к земле</p>
+            <p><kbd>H</kbd> отцепить от курсора и прицепить обратно</p>
+            <p><kbd>Esc</kbd> снять последнее, <kbd>Backspace</kbd> снять все</p>
+            <p><kbd>L</kbd> очистить замеры</p>
+          </div>
+          <div><h3>План</h3>
+            <p><kbd>+</kbd> <kbd>−</kbd> масштаб, <kbd>0</kbd> вписать</p>
+            <p><kbd>K</kbd> разрез по двум точкам</p>
+            <p>Стержень тяните мышью, клик по стержню открывает ввод X, Y</p>
+            <p>Клик по подписи L вводит расстояние</p>
+          </div>
+        </div>
+        <p class="note">Клавиши работают в любой раскладке и не срабатывают, пока курсор стоит в поле ввода.</p>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+// Расчётное ядро катящейся сферы. Все размеры в метрах, z вверх.
+// Молниеприёмник-стержень: точка (x, y) высотой h от земли.
+// Центр сферы над точкой (x, y) не может опуститься ниже zc(x, y);
+// защищённая высота в точке p — нижняя огибающая всех таких сфер.
+
+function r0Of(h, R) { return h >= R ? R : Math.sqrt(h * (2 * R - h)); }
+
+function zcAt(rods, R, x, y) {
+  let z = R;
+  for (let k = 0; k < rods.length; k++) {
+    const dx = x - rods[k].x, dy = y - rods[k].y, d2 = dx * dx + dy * dy;
+    if (d2 < R * R) {
+      const v = rods[k].h + Math.sqrt(R * R - d2);
+      if (v > z) z = v;
+    }
+  }
+  return z;
+}
+
+// Модель для быстрого расчёта: заранее находим все допустимые положения центра сферы,
+// в которых она опирается сразу на несколько молниеприёмников или на землю и стержень.
+// Нижняя граница допустимых центров состоит из: земли (zc = R вне кругов r0),
+// сферических кусков вокруг вершин, рёбер (сфера на двух вершинах) и вершин
+// (сфера на трёх вершинах или на двух вершинах и земле). Минимум ищется по рёбрам и вершинам.
+function prepare(rods, R) {
+  const n = rods.length, EPS = 1e-6;
+  const T = rods.map(r => ({ x: r.x, y: r.y, h: r.h, r0: r0Of(r.h, R) }));
+  const okC = (x, y, z) => {
+    if (z < R - EPS) return false;
+    for (const t of T) {
+      const dh = Math.hypot(x - t.x, y - t.y), dz = z > t.h ? z - t.h : 0;
+      if (dh * dh + dz * dz < R * R - 1e-6) return false;
+    }
+    return true;
+  };
+  const pts = []; // допустимые центры на рёбрах и в вершинах: x, y, z подряд
+  const blocks = []; // группы точек: {s, e, cx, cy, rad, zmin} для быстрого отсева
+  const open = (cx, cy, rad) => ({ s: pts.length, cx, cy, rad, zmin: Infinity });
+  const close = b => { b.e = pts.length; if (b.e > b.s) { for (let k = b.s + 2; k < b.e; k += 3) b.zmin = Math.min(b.zmin, pts[k]); blocks.push(b); } };
+  let single = open(0, 0, Infinity);
+  // сфера на земле и двух стержнях (точки пересечения окружностей r0)
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = T[i], b = T[j], dx = b.x - a.x, dy = b.y - a.y, D = Math.hypot(dx, dy);
+    if (D < 1e-9 || D > a.r0 + b.r0 || D < Math.abs(a.r0 - b.r0)) continue;
+    const l = (a.r0 * a.r0 - b.r0 * b.r0 + D * D) / (2 * D), q = Math.sqrt(Math.max(0, a.r0 * a.r0 - l * l));
+    for (const sg of [1, -1]) {
+      const x = a.x + (l * dx - sg * q * dy) / D, y = a.y + (l * dy + sg * q * dx) / D;
+      if (okC(x, y, R)) pts.push(x, y, R);
+    }
+  }
+  close(single);
+  // сфера на двух вершинах: окружность центров в плоскости, перпендикулярной отрезку
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+    const a = T[i], b = T[j];
+    const e = [b.x - a.x, b.y - a.y, b.h - a.h], D = Math.hypot(...e);
+    if (D < 1e-9 || D >= 2 * R) continue;
+    e[0] /= D; e[1] /= D; e[2] /= D;
+    let u1 = [-e[1], e[0], 0]; const l1 = Math.hypot(...u1);
+    if (l1 < 1e-9) continue; // вершины одна над другой
+    u1 = u1.map(v => v / l1);
+    const u2 = [e[1] * u1[2] - e[2] * u1[1], e[2] * u1[0] - e[0] * u1[2], e[0] * u1[1] - e[1] * u1[0]];
+    const m = [(a.x + b.x) / 2, (a.y + b.y) / 2, (a.h + b.h) / 2], rho = Math.sqrt(R * R - D * D / 4);
+    const N = Math.max(360, Math.ceil(2 * Math.PI * rho / 0.03));
+    const blk = open(m[0], m[1], rho);
+    for (let k = 0; k < N; k++) {
+      const th = 2 * Math.PI * k / N, c = Math.cos(th) * rho, s = Math.sin(th) * rho;
+      const x = m[0] + c * u1[0] + s * u2[0], y = m[1] + c * u1[1] + s * u2[1], z = m[2] + c * u1[2] + s * u2[2];
+      if (okC(x, y, z)) pts.push(x, y, z);
+    }
+    close(blk);
+  }
+  // сфера на трёх вершинах
+  single = open(0, 0, Infinity);
+  for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) for (let k = j + 1; k < n; k++) {
+    const A = [T[i].x, T[i].y, T[i].h], B = [T[j].x, T[j].y, T[j].h], C = [T[k].x, T[k].y, T[k].h];
+    const ab = B.map((v, q) => v - A[q]), ac = C.map((v, q) => v - A[q]);
+    const nn = [ab[1] * ac[2] - ab[2] * ac[1], ab[2] * ac[0] - ab[0] * ac[2], ab[0] * ac[1] - ab[1] * ac[0]];
+    const n2 = nn[0] ** 2 + nn[1] ** 2 + nn[2] ** 2;
+    if (n2 < 1e-12) continue;
+    const ab2 = ab.reduce((s, v) => s + v * v, 0), ac2 = ac.reduce((s, v) => s + v * v, 0);
+    // центр описанной окружности: A + (|ac|²(n×ab) + |ab|²(ac×n)) / (2|n|²)
+    const nxab = [nn[1] * ab[2] - nn[2] * ab[1], nn[2] * ab[0] - nn[0] * ab[2], nn[0] * ab[1] - nn[1] * ab[0]];
+    const acxn = [ac[1] * nn[2] - ac[2] * nn[1], ac[2] * nn[0] - ac[0] * nn[2], ac[0] * nn[1] - ac[1] * nn[0]];
+    const cc = [0, 1, 2].map(q => A[q] + (ac2 * nxab[q] + ab2 * acxn[q]) / (2 * n2));
+    const rc2 = (cc[0] - A[0]) ** 2 + (cc[1] - A[1]) ** 2 + (cc[2] - A[2]) ** 2;
+    if (rc2 > R * R) continue;
+    const off = Math.sqrt(R * R - rc2) / Math.sqrt(n2);
+    for (const sg of [1, -1]) {
+      const x = cc[0] + sg * off * nn[0], y = cc[1] + sg * off * nn[1], z = cc[2] + sg * off * nn[2];
+      if (okC(x, y, z)) pts.push(x, y, z);
+    }
+  }
+  close(single);
+  blocks.sort((a, b) => a.zmin - b.zmin);
+  return { R, T, okC, P: new Float64Array(pts), blocks };
+}
+
+// Защищённая высота над точкой (px, py): низ самой низкой допустимой сферы.
+function hpAt(M, px, py) {
+  const { R, T, okC, P } = M, R2 = R * R;
+  let inside = false;
+  for (const t of T) if (Math.hypot(px - t.x, py - t.y) < t.r0) { inside = true; break; }
+  if (!inside) return 0;
+  let best = Infinity;
+  // сфера на земле у границы кругов r0: ближайшая точка окружности
+  for (const t of T) {
+    let dx = px - t.x, dy = py - t.y, d = Math.hypot(dx, dy);
+    if (d < 1e-9) { dx = 1; dy = 0; d = 1; }
+    const x = t.x + dx / d * t.r0, y = t.y + dy / d * t.r0;
+    const r2 = (x - px) ** 2 + (y - py) ** 2;
+    if (r2 <= R2 && okC(x, y, R)) { const f = R - Math.sqrt(R2 - r2); if (f < best) best = f; }
+  }
+  // группы упорядочены по нижней высоте центра: f >= zmin - R, дальше можно не смотреть
+  for (const b of M.blocks) {
+    if (b.zmin - R >= best) break;
+    if (Math.hypot(b.cx - px, b.cy - py) - b.rad > R) continue;
+    for (let k = b.s; k < b.e; k += 3) {
+      const dx = P[k] - px, dy = P[k + 1] - py, r2 = dx * dx + dy * dy;
+      if (r2 > R2) continue;
+      const f = P[k + 2] - Math.sqrt(R2 - r2);
+      if (f < best) best = f;
+    }
+  }
+  return best > 0 && best < Infinity ? best : 0;
+}
+
+// Оборудование: прямоугольник (l × w, поворот rot°) или цилиндр (диаметр l).
+function footprint(e, n = 48) {
+  if (e.shape === 'cyl') return Array.from({ length: n }, (_, k) => [e.x + e.l / 2 * Math.cos(2 * Math.PI * k / n), e.y + e.l / 2 * Math.sin(2 * Math.PI * k / n)]);
+  const c = Math.cos((e.rot || 0) * Math.PI / 180), s = Math.sin((e.rot || 0) * Math.PI / 180);
+  return [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => { const u = a * e.l / 2, v = b * e.w / 2; return [e.x + u * c - v * s, e.y + u * s + v * c]; });
+}
+function insideFoot(e, x, y) {
+  if (e.shape === 'cyl') return Math.hypot(x - e.x, y - e.y) <= e.l / 2 + 1e-9;
+  const c = Math.cos((e.rot || 0) * Math.PI / 180), s = Math.sin((e.rot || 0) * Math.PI / 180), dx = x - e.x, dy = y - e.y;
+  return Math.abs(dx * c + dy * s) <= e.l / 2 + 1e-9 && Math.abs(-dx * s + dy * c) <= e.w / 2 + 1e-9;
+}
+// точки крыши: контур с шагом step и внутренняя сетка (для проверки и для опоры сферы)
+function roofPoints(e, step, interior = true) {
+  const pts = [], poly = footprint(e, e.shape === 'cyl' ? Math.max(12, Math.ceil(Math.PI * e.l / step)) : 4);
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i], b = poly[(i + 1) % poly.length], L = Math.hypot(b[0] - a[0], b[1] - a[1]), n = e.shape === 'cyl' ? 1 : Math.max(1, Math.ceil(L / step));
+    for (let k = 0; k < n; k++) pts.push([a[0] + (b[0] - a[0]) * k / n, a[1] + (b[1] - a[1]) * k / n]);
+  }
+  if (interior) {
+    const r = e.shape === 'cyl' ? e.l / 2 : Math.hypot(e.l, e.w) / 2;
+    for (let x = e.x - r + step / 2; x < e.x + r; x += step) for (let y = e.y - r + step / 2; y < e.y + r; y += step)
+      if (insideFoot(e, x, y)) pts.push([x, y]);
+  }
+  return pts;
+}
+// Опорные точки сферы: стержни и оборудование, отмеченное как молниеприёмник.
+function receptorsOf(rods, equip) {
+  const out = rods.map(r => ({ x: r.x, y: r.y, h: r.h }));
+  for (const e of equip || []) if (e.receptor && e.h > 0) {
+    const size = e.shape === 'cyl' ? e.l : Math.max(e.l, e.w);
+    const step = Math.max(1.5, size / 6);
+    for (const [x, y] of roofPoints(e, step, true)) out.push({ x, y, h: e.h });
+  }
+  return out;
+}
+
+function extentOf(rods, R) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  for (const r of rods) {
+    const e = r0Of(r.h, R) + 1;
+    x0 = Math.min(x0, r.x - e); y0 = Math.min(y0, r.y - e);
+    x1 = Math.max(x1, r.x + e); y1 = Math.max(y1, r.y + e);
+  }
+  return { x0, y0, x1, y1 };
+}
+
+// Поле защищённых высот на регулярной сетке.
+function computeField(rods, R, step) {
+  const M = prepare(rods, R), ext = extentOf(rods, R);
+  const x0 = Math.floor(ext.x0 / step) * step, y0 = Math.floor(ext.y0 / step) * step;
+  const nx = Math.ceil((ext.x1 - x0) / step) + 1, ny = Math.ceil((ext.y1 - y0) / step) + 1;
+  const h = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++)
+    for (let i = 0; i < nx; i++)
+      h[j * nx + i] = hpAt(M, x0 + i * step, y0 + j * step);
+  return { x0, y0, step, nx, ny, h };
+}
+
+// Изолинии уровня lvl (marching squares), сшитые в замкнутые контуры.
+function contours(F, lvl) {
+  const { nx, ny, h, x0, y0, step } = F;
+  const val = (i, j) => (i < 0 || j < 0 || i >= nx || j >= ny) ? -1 : h[j * nx + i] - lvl;
+  // точки на рёбрах: ключ "h:i:j" (ребро (i,j)-(i+1,j)) или "v:i:j" ((i,j)-(i,j+1))
+  const pt = {};
+  const P = (k, i, j) => {
+    if (pt[k]) return k;
+    let a, b, xa, ya, xb, yb;
+    if (k[0] === 'h') { a = val(i, j); b = val(i + 1, j); xa = i; ya = j; xb = i + 1; yb = j; }
+    else { a = val(i, j); b = val(i, j + 1); xa = i; ya = j; xb = i; yb = j + 1; }
+    const t = a / (a - b);
+    pt[k] = [x0 + (xa + t * (xb - xa)) * step, y0 + (ya + t * (yb - ya)) * step];
+    return k;
+  };
+  const next = {};
+  // обход клеток с полем от -1 до nx; ориентация: защищённая область слева
+  for (let j = -1; j < ny; j++) for (let i = -1; i < nx; i++) {
+    const a = val(i, j), b = val(i + 1, j), c = val(i + 1, j + 1), d = val(i, j + 1);
+    const code = (a > 0 ? 1 : 0) | (b > 0 ? 2 : 0) | (c > 0 ? 4 : 0) | (d > 0 ? 8 : 0);
+    if (code === 0 || code === 15) continue;
+    const B = 'h:' + i + ':' + j, Rt = 'v:' + (i + 1) + ':' + j, T = 'h:' + i + ':' + (j + 1), L = 'v:' + i + ':' + j;
+    const seg = (p, q) => { next[P(p, ...p.split(':').slice(1).map(Number))] = P(q, ...q.split(':').slice(1).map(Number)); };
+    const center = (a + b + c + d) / 4 > 0;
+    switch (code) {
+      case 1: seg(L, B); break;
+      case 2: seg(B, Rt); break;
+      case 3: seg(L, Rt); break;
+      case 4: seg(Rt, T); break;
+      case 5: if (center) { seg(L, T); seg(Rt, B); } else { seg(L, B); seg(Rt, T); } break;
+      case 6: seg(B, T); break;
+      case 7: seg(L, T); break;
+      case 8: seg(T, L); break;
+      case 9: seg(T, B); break;
+      case 10: if (center) { seg(B, L); seg(T, Rt); } else { seg(B, Rt); seg(T, L); } break;
+      case 11: seg(T, Rt); break;
+      case 12: seg(Rt, L); break;
+      case 13: seg(Rt, B); break;
+      case 14: seg(B, L); break;
+    }
+  }
+  const loops = [], used = {};
+  for (const k in next) {
+    if (used[k]) continue;
+    const loop = []; let c = k;
+    while (c && !used[c]) { used[c] = 1; loop.push(pt[c]); c = next[c]; }
+    if (loop.length > 2) loops.push(loop);
+  }
+  return loops;
+}
+
+function polyArea(loop) {
+  let s = 0;
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[i], b = loop[(i + 1) % loop.length];
+    s += a[0] * b[1] - b[0] * a[1];
+  }
+  return s / 2;
+}
+
+// Пары стержней: провис по классической формуле (сфера на двух вершинах).
+const PAIR_LETTERS = 'АБВГДЕЖИКЛМНПРСТУФХЦШЩЭЮЯ';
+function pairsOf(rods, R) {
+  const out = []; let n = 0;
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j];
+    const L = Math.hypot(b.x - a.x, b.y - a.y);
+    // окружности радиуса R вокруг вершин (0, h1) и (L, h2), верхнее пересечение
+    const dz = b.h - a.h, D = Math.hypot(L, dz);
+    if (D >= 2 * R || L < 1e-6) continue;
+    const mx = L / 2, mz = (a.h + b.h) / 2, k = Math.sqrt(R * R - D * D / 4);
+    let cx = mx - k * dz / D, cz = mz + k * L / D;
+    const hc = cz - R;
+    if (hc <= 0) continue;
+    const letter = PAIR_LETTERS[n % PAIR_LETTERS.length] + (n >= PAIR_LETTERS.length ? Math.floor(n / PAIR_LETTERS.length) : '');
+    n++;
+    out.push({ i, j, L, hc, cx, cz, name: letter + '-' + letter });
+  }
+  return out;
+}
+
+if (typeof module !== 'undefined') module.exports = { r0Of, zcAt, prepare, hpAt, receptorsOf, roofPoints, footprint, insideFoot, computeField, contours, polyArea, pairsOf };
+
+</script>
+
+<script>
+// Состояние, ввод и таблицы результатов (без 3D).
+const SAMPLE = (() => {
+  const H = 13.5, LA = 39.45, LB = 38.01, LC = 37;
+  const x1 = (LC * LC + LA * LA - LB * LB) / (2 * LC);
+  const r2 = v => Math.round(v * 1000) / 1000;
+  return { title: 'Скважина 171-1', R: 30, hx: 3, rods: [
+    { name: 'М1', x: r2(x1), y: r2(Math.sqrt(LA * LA - x1 * x1)), h: H },
+    { name: 'М2', x: 0, y: 0, h: H },
+    { name: 'М3', x: 37, y: 0, h: H } ],
+    equip: EXAMPLE_EQUIP(), cuts: [] };
+})();
+function EXAMPLE_EQUIP() {
+  return [
+    { name: 'Блок (пример)', shape: 'box', x: 19, y: 11, l: 6, w: 3, h: 3.5, rot: 0, receptor: false },
+    { name: 'Ёмкость (пример)', shape: 'cyl', x: 35, y: 14, l: 4, w: 4, h: 5, rot: 0, receptor: false } ];
+}
+const KEY = 'sfera-proekt-v1';
+let state;
+try { state = JSON.parse(localStorage.getItem(KEY)); } catch (e) { state = null; }
+if (!state || !Array.isArray(state.rods)) state = JSON.parse(JSON.stringify(SAMPLE));
+if (!Array.isArray(state.equip)) state.equip = EXAMPLE_EQUIP();
+if (!Array.isArray(state.cuts)) state.cuts = [];
+// история для Ctrl+Z / Ctrl+Y: снимок состояния после паузы в правках
+let hist = [], hpos = -1, htimer = null;
+function snap() { clearTimeout(htimer); const j = JSON.stringify(state); if (hist[hpos] === j) return;
+  hist = hist.slice(0, hpos + 1); hist.push(j); if (hist.length > 100) hist.shift(); hpos = hist.length - 1; }
+const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} clearTimeout(htimer); htimer = setTimeout(snap, 400); };
+function loadState(o) { state = o; if (!Array.isArray(state.equip)) state.equip = []; if (!Array.isArray(state.cuts)) state.cuts = []; renderInputs(); changed(); }
+function undo(dir) { snap(); const k = hpos + dir; if (k < 0 || k >= hist.length) return false; hpos = k; loadState(JSON.parse(hist[k])); return true; }
+const fmt = (v, d = 2) => Number.isFinite(v) ? v.toFixed(d).replace('.', ',').replace('-', '−') : '—';
+const $ = id => document.getElementById(id);
+// единицы длины: внутри всё в метрах, на экране мм (по умолчанию) или м
+const MM = () => state.units !== 'm';
+const UL = () => MM() ? 'мм' : 'м';
+const fL = (v, d = 2) => !Number.isFinite(v) ? '—' : MM()
+  ? String(Math.round(v * 1000)).replace('-', '−').replace(/\B(?=(\d{3})+(?!\d))/g, '\u202f') : fmt(v, d);
+const toIn = v => !Number.isFinite(v) ? '' : MM() ? Math.round(v * 1000) : Math.round(v * 1000) / 1000;
+const fromIn = s => { const v = parseFloat(s); return Number.isFinite(v) ? (MM() ? v / 1000 : v) : NaN; };
+function renderUnits() {
+  $('units').value = MM() ? 'mm' : 'm';
+  document.querySelectorAll('.u').forEach(el => { el.textContent = UL(); });
+  document.querySelectorAll('.uname').forEach(el => { el.textContent = MM() ? 'миллиметрах' : 'метрах'; });
+  [...$('level').options].forEach(o => { if (o.value !== 'custom') o.textContent = o.textContent.replace(/R = .*/, 'R = ' + (MM() ? fL(+o.value) : o.value) + ' ' + UL()); });
+}
+document.addEventListener('focusin', e => { if (e.target.classList && e.target.classList.contains('len')) e.target.step = MM() ? '1' : '0.01'; });
+
+function renderInputs() {
+  renderUnits();
+  $('title').value = state.title || '';
+  $('R').value = toIn(state.R); $('hx').value = toIn(state.hx);
+  $('level').value = ['20', '30', '45', '60'].includes(String(state.R)) ? String(state.R) : 'custom';
+  const tb = $('rods'); tb.innerHTML = '';
+  state.rods.forEach((r, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><input type="text" id="rn${i}" aria-label="Имя"></td>
+      <td><input type="number" class="len" id="rx${i}" aria-label="X"></td>
+      <td><input type="number" class="len" id="ry${i}" aria-label="Y"></td>
+      <td><input type="number" class="len" min="0" id="rh${i}" aria-label="H"></td>
+      <td><button class="x" type="button" title="Удалить" aria-label="Удалить ${r.name}">×</button></td>`;
+    tb.appendChild(tr);
+    const set = (el, key, num) => { el.value = num ? toIn(r[key]) : r[key]; el.addEventListener('input', () => {
+      const v = num ? fromIn(el.value) : el.value; if (num && !Number.isFinite(v)) return;
+      r[key] = v; changed(); }); };
+    set(tr.querySelector('#rn' + i), 'name', false);
+    set(tr.querySelector('#rx' + i), 'x', true);
+    set(tr.querySelector('#ry' + i), 'y', true);
+    set(tr.querySelector('#rh' + i), 'h', true);
+    tr.querySelector('button').addEventListener('click', () => { state.rods.splice(i, 1); renderInputs(); changed(); });
+  });
+}
+$('level').addEventListener('change', e => { if (e.target.value !== 'custom') { state.R = +e.target.value; $('R').value = toIn(state.R); changed(); } });
+$('R').addEventListener('input', e => { const v = fromIn(e.target.value); if (v >= 5) { state.R = v;
+  $('level').value = ['20', '30', '45', '60'].includes(String(v)) ? String(v) : 'custom'; changed(); } });
+$('hx').addEventListener('input', e => { const v = fromIn(e.target.value); if (v >= 0) { state.hx = v; changed(); } });
+$('title').addEventListener('input', e => { state.title = e.target.value; save(); });
+$('units').addEventListener('change', e => { state.units = e.target.value; save(); renderInputs(); if (result) window.onResult && window.onResult(result); recompute(); });
+$('add').addEventListener('click', () => {
+  const last = state.rods[state.rods.length - 1] || { x: 0, y: 0, h: 13.5 };
+  state.rods.push({ name: 'М' + (state.rods.length + 1), x: Math.round(last.x + 20), y: last.y, h: last.h });
+  renderInputs(); changed();
+});
+$('sample').addEventListener('click', () => { state = JSON.parse(JSON.stringify(SAMPLE)); state.equip = EXAMPLE_EQUIP(); renderInputs(); changed(); });
+
+let result = null, timer = null;
+function changed() { save(); if (!$('dists').contains(document.activeElement)) renderDists(); clearTimeout(timer); $('busy').hidden = false; timer = setTimeout(recompute, 120); }
+function validRods() { return state.rods.filter(r => Number.isFinite(r.x) && Number.isFinite(r.y) && r.h > 0); }
+
+function recompute() {
+  const rods = validRods(), R = state.R, hx = state.hx;
+  const tall = rods.filter(r => r.h >= R);
+  $('rodwarn').hidden = !tall.length;
+  $('rodwarn').textContent = tall.length ? `Высота ${tall.map(r => r.name).join(', ')} не меньше R: такой стержень защищает круг радиусом R, расчёт у вершины приближённый.` : '';
+  // одиночный стержень
+  $('single').innerHTML = rods.map(r => {
+    const r0 = r0Of(r.h, R), rx = hx < r.h ? r0 - Math.sqrt(hx * (2 * R - hx)) : NaN;
+    return `<tr><td>${esc(r.name)}</td><td class="n">${fL(r0)}</td><td class="n">${rx > 0 ? fL(rx) : '—'}</td></tr>`;
+  }).join('') || '<tr><td colspan="3" class="note">Добавьте молниеприёмник</td></tr>';
+  // опорные точки: стержни и оборудование-молниеприёмники
+  const equip = (state.equip || []).filter(e => [e.x, e.y, e.l, e.h].every(Number.isFinite) && e.l > 0 && e.h > 0 && (e.shape === 'cyl' || e.w > 0));
+  const recv = receptorsOf(rods, equip);
+  const M = recv.length ? prepare(recv, R) : null;
+  // пары
+  const pairs = pairsOf(rods, R);
+  $('pairs').innerHTML = pairs.map(p => {
+    const a = rods[p.i], b = rods[p.j], h3 = hpAt(M, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    const ok = p.hc >= hx, ok3 = h3 >= hx;
+    const pill = !ok ? '<span class="pill bad">hc &lt; hx</span>' : ok3 ? '<span class="pill ok">hc ≥ hx</span>'
+      : '<span class="pill warn3" title="По классике защищено, но сфера, подкатившись сбоку, опускается ниже hx">3D &lt; hx</span>';
+    return `<tr><td>${p.name}</td><td>${esc(a.name)}–${esc(b.name)}</td><td class="n">${fL(p.L)}</td>
+      <td class="n">${fL(p.hc)}</td><td class="n muted">${fL(h3)}</td><td>${pill}</td></tr>`;
+  }).join('') || '<tr><td colspan="6" class="note">Нет пар со сферой, опёртой на две вершины (стержни дальше 2r0 друг от друга)</td></tr>';
+  if (!recv.length) { result = null; $('area').textContent = '—'; $('loops').textContent = '—'; window.onResult && window.onResult(null); $('busy').hidden = true; renderEquipRes([]); return; }
+  const ext = extentOf(recv.concat(equip.map(e => ({ x: e.x, y: e.y, h: 0.1 }))), R), cells = (ext.x1 - ext.x0) * (ext.y1 - ext.y0);
+  const step = (cells > 120000 || recv.length > 40) ? 1 : (cells > 40000 || recv.length > 12) ? 0.5 : 0.25;
+  const F = computeField(recv, R, step);
+  const loops = hx > 0 ? contours(F, hx) : [];
+  const area = -loops.reduce((s, l) => s + polyArea(l), 0);
+  $('area').textContent = loops.length ? fmt(area) + ' м²' : '—';
+  $('loops').textContent = loops.length ? String(loops.length) : 'нет зоны на hx';
+  // проверка оборудования по всей крыше
+  const checks = equip.map(e => {
+    if (e.receptor) return { e, receptor: true };
+    const pts = roofPoints(e, 0.5, true);
+    let min = Infinity; const bad = [];
+    for (const [x, y] of pts) { const m = hpAt(M, x, y) - e.h; if (m < min) min = m; if (m < 0) bad.push([x, y]); }
+    return { e, min, bad, n: pts.length };
+  });
+  renderEquipRes(checks);
+  result = { rods, R, hx, F, loops, pairs, M, recv, equip, checks };
+  window.onResult && window.onResult(result);
+  $('busy').hidden = true;
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// ---------- расстояния между стержнями ----------
+const r2 = v => Math.round(v * 1000) / 1000;
+// второй стержень пары сдвигается вдоль линии a→b так, чтобы |ab| = L
+function setPairL(a, b, L) {
+  if (!(L > 0)) return false;
+  const dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+  const ux = d > 1e-9 ? dx / d : 1, uy = d > 1e-9 ? dy / d : 0;
+  b.x = r2(a.x + ux * L); b.y = r2(a.y + uy * L);
+  renderInputs(); changed();
+  return true;
+}
+window.setPairL = setPairL;
+function renderDists() {
+  const rods = state.rods, tb = $('dists'); tb.innerHTML = '';
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j], tr = document.createElement('tr');
+    tr.innerHTML = `<td>${esc(a.name)}–${esc(b.name)}</td><td><input type="number" class="len" min="0" id="dl${i}_${j}" aria-label="Расстояние ${esc(a.name)}–${esc(b.name)}"></td><td class="note">двигается ${esc(b.name)}</td>`;
+    const inp = tr.querySelector('input'); inp.value = toIn(Math.hypot(b.x - a.x, b.y - a.y));
+    inp.addEventListener('change', () => setPairL(a, b, fromIn(inp.value)));
+    tb.appendChild(tr);
+  }
+  if (!tb.children.length) tb.innerHTML = '<tr><td colspan="3" class="note">Нужно хотя бы два стержня</td></tr>';
+  if ($('buildBox').open) renderBuild();
+}
+function renderBuild() {
+  const rods = state.rods, box = $('buildRows'); box.innerHTML = '';
+  const opts = (k, sel) => rods.slice(0, k).map((r, q) => `<option value="${q}"${q === sel ? ' selected' : ''}>${esc(r.name)}</option>`).join('');
+  const dist = (p, q) => toIn(Math.hypot(rods[p].x - rods[q].x, rods[p].y - rods[q].y));
+  rods.forEach((r, k) => {
+    const row = document.createElement('div'); row.className = 'brow';
+    if (k === 0) row.innerHTML = `<b>${esc(r.name)}</b><span class="note">в начале координат</span>`;
+    else if (k === 1) row.innerHTML = `<b>${esc(r.name)}</b><span>от <select id="bA${k}">${opts(1, 0)}</select></span><span>L <input type="number" class="len" id="bL${k}" value="${dist(0, 1)}"></span>`;
+    else {
+      const A = k - 2, B = k - 1, cr = (rods[B].x - rods[A].x) * (r.y - rods[A].y) - (rods[B].y - rods[A].y) * (r.x - rods[A].x);
+      row.innerHTML = `<b>${esc(r.name)}</b>
+        <span>от <select id="bA${k}">${opts(k, A)}</select> L <input type="number" class="len" id="bL${k}" value="${dist(A, k)}"></span>
+        <span>от <select id="bB${k}">${opts(k, B)}</select> L <input type="number" class="len" id="bM${k}" value="${dist(B, k)}"></span>
+        <span><select id="bS${k}"><option value="1"${cr >= 0 ? ' selected' : ''}>слева</option><option value="-1"${cr < 0 ? ' selected' : ''}>справа</option></select></span>`;
+    }
+    box.appendChild(row);
+    // при смене опорного стержня подставляем текущее расстояние
+    for (const [s, l] of [['bA', 'bL'], ['bB', 'bM']]) {
+      const sel = row.querySelector('#' + s + k);
+      if (sel) sel.addEventListener('change', () => { row.querySelector('#' + l + k).value = dist(+sel.value, k); });
+    }
+  });
+}
+$('buildBox').addEventListener('toggle', () => { if ($('buildBox').open) renderBuild(); });
+$('buildGo').addEventListener('click', () => {
+  const rods = state.rods, P = [], msg = [];
+  rods.forEach((r, k) => {
+    if (k === 0) { P.push([0, 0]); return; }
+    if (k === 1) { const a = P[+$('bA1').value], L = fromIn($('bL1').value); P.push([a[0] + L, a[1]]); if (!(L > 0)) msg.push(`${r.name}: укажите L`); return; }
+    const A = +$('bA' + k).value, B = +$('bB' + k).value, L1 = fromIn($('bL' + k).value), L2 = fromIn($('bM' + k).value), side = +$('bS' + k).value;
+    const a = P[A], b = P[B], dx = b[0] - a[0], dy = b[1] - a[1], D = Math.hypot(dx, dy);
+    if (A === B || D < 1e-9) { msg.push(`${r.name}: выберите два разных опорных стержня`); P.push([a[0], a[1]]); return; }
+    if (!(L1 > 0 && L2 > 0) || L1 + L2 < D || Math.abs(L1 - L2) > D) {
+      msg.push(`${r.name}: расстояния ${fL(L1)} и ${fL(L2)} не сходятся в треугольник с ${rods[A].name}–${rods[B].name} = ${fL(D)} ${UL()}`);
+      P.push([a[0], a[1]]); return;
+    }
+    const l = (L1 * L1 - L2 * L2 + D * D) / (2 * D), h = Math.sqrt(Math.max(0, L1 * L1 - l * l));
+    P.push([a[0] + (l * dx - side * h * dy) / D, a[1] + (l * dy + side * h * dx) / D]);
+  });
+  $('buildMsg').hidden = !msg.length; $('buildMsg').textContent = msg.join('. ');
+  if (msg.length) return;
+  rods.forEach((r, k) => { r.x = r2(P[k][0]); r.y = r2(P[k][1]); });
+  renderInputs(); changed();
+});
+// ---------- оборудование ----------
+function renderEquip() {
+  const box = $('equip'); box.innerHTML = '';
+  state.equip.forEach((e, i) => {
+    const d = document.createElement('div'); d.className = 'eq';
+    const cyl = e.shape === 'cyl';
+    d.innerHTML = `<div class="top">
+        <input type="text" id="en${i}" aria-label="Название">
+        <select id="es${i}" aria-label="Форма"><option value="box">блок</option><option value="cyl">цилиндр</option></select>
+        <button class="x" type="button" title="Удалить" aria-label="Удалить">×</button></div>
+      <div class="grid6">
+        <label>X, <span class="u">м</span><input type="number" class="len" id="ex${i}"></label>
+        <label>Y, <span class="u">м</span><input type="number" class="len" id="ey${i}"></label>
+        <label>Высота, <span class="u">м</span><input type="number" class="len" min="0" id="eh${i}"></label>
+        <label>${cyl ? 'Диаметр' : 'Длина'}, <span class="u">м</span><input type="number" class="len" min="0" id="el${i}"></label>
+        ${cyl ? '' : `<label>Ширина, <span class="u">м</span><input type="number" class="len" min="0" id="ew${i}"></label>
+        <label>Поворот, °<input type="number" step="1" id="er${i}"></label>`}
+      </div>
+      <label class="chk"><input type="checkbox" id="ec${i}"> служит молниеприёмником</label>
+      <div class="res" id="eres${i}"></div>`;
+    box.appendChild(d);
+    const bind = (id, key, num) => { const el = d.querySelector('#' + id + i); if (!el) return;
+      if (el.type === 'checkbox') { el.checked = !!e[key]; el.addEventListener('change', () => { e[key] = el.checked; changed(); }); return; }
+      el.value = num === 1 ? toIn(e[key]) : (e[key] ?? ''); el.addEventListener(el.tagName === 'SELECT' ? 'change' : 'input', () => {
+        const v = num === 1 ? fromIn(el.value) : num ? parseFloat(el.value) : el.value; if (num && !Number.isFinite(v)) return;
+        e[key] = v; if (key === 'shape') renderEquip(); changed(); }); };
+    bind('en', 'name'); bind('es', 'shape'); bind('ex', 'x', 1); bind('ey', 'y', 1); bind('eh', 'h', 1);
+    bind('el', 'l', 1); bind('ew', 'w', 1); bind('er', 'rot', 2); bind('ec', 'receptor');
+    d.querySelector('button.x').addEventListener('click', () => { state.equip.splice(i, 1); renderEquip(); changed(); });
+  });
+  if (!state.equip.length) box.innerHTML = '<p class="note" style="margin:0">Оборудования нет. Добавьте блок или цилиндр, чтобы проверить его защиту.</p>';
+}
+function renderEquipRes(checks) {
+  state.equip.forEach((e, i) => {
+    const el = $('eres' + i); if (!el) return;
+    const c = checks.find(q => q.e === e);
+    if (!c) { el.innerHTML = '<span class="note" style="margin:0">заполните размеры</span>'; return; }
+    if (c.receptor) { el.innerHTML = '<span class="pill warn3">молниеприёмник</span>'; return; }
+    el.innerHTML = c.min >= 0 ? `<span class="pill ok">защищён</span><span>запас ${fL(c.min)} ${UL()}</span>`
+      : `<span class="pill bad">не защищён</span><span>сфера на ${fL(-c.min)} ${UL()} ниже верха, ${Math.round(c.bad.length / c.n * 100)}% крыши</span>`;
+  });
+}
+function addEquip(shape) {
+  const rods = validRods(), cx = rods.length ? rods.reduce((s, r) => s + r.x, 0) / rods.length : 0, cy = rods.length ? rods.reduce((s, r) => s + r.y, 0) / rods.length : 0;
+  state.equip.push({ name: (shape === 'cyl' ? 'Ёмкость ' : 'Блок ') + (state.equip.length + 1), shape, x: r2(cx), y: r2(cy), l: shape === 'cyl' ? 3 : 4, w: 3, h: 3, rot: 0, receptor: false });
+  renderEquip(); changed();
+}
+$('addBox').addEventListener('click', () => addEquip('box'));
+$('addCyl').addEventListener('click', () => addEquip('cyl'));
+const _renderInputs = renderInputs;
+renderInputs = function () { _renderInputs(); renderDists(); renderEquip(); };
+renderInputs();
+recompute();
+snap();
+</script>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const host = document.getElementById('scene');
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+host.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
+camera.up.set(0, 0, 1);
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.maxPolarAngle = Math.PI / 2 - 0.02;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8899aa, 1.6));
+const sun = new THREE.DirectionalLight(0xffffff, 1.4); sun.position.set(-60, -90, 140); scene.add(sun);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const col = n => new THREE.Color(css(n));
+const $ = id => document.getElementById(id);
+const fmt = (v, d = 2) => Number.isFinite(v) ? v.toFixed(d).replace('.', ',').replace('-', '−') : '—';
+const EPS = 1e-3;
+
+const groups = {};
+for (const k of ['ground', 'rods', 'zone', 'hx', 'plane', 'circles', 'dims', 'marks', 'path', 'contacts', 'equip'])
+  scene.add(groups[k] = new THREE.Group());
+groups.plane.visible = false; groups.circles.visible = false;
+
+const mat = {
+  zone: new THREE.MeshStandardMaterial({ transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, roughness: .7, metalness: 0 }),
+  zoneEdge: new THREE.LineBasicMaterial({ transparent: true, opacity: 0.35 }),
+  hxFill: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false }),
+  hxLine: new THREE.LineBasicMaterial(),
+  plane: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.12, side: THREE.DoubleSide, depthWrite: false }),
+  rod: new THREE.MeshStandardMaterial({ roughness: .4, metalness: .6 }),
+  pick: new THREE.MeshBasicMaterial({ visible: false }),
+  sphere: new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.10, depthWrite: false }),
+  sphereWire: new THREE.LineBasicMaterial({ transparent: true, opacity: 0.2 }),
+  contact: new THREE.MeshBasicMaterial({ depthTest: false }),
+  dim: new THREE.LineBasicMaterial(),
+  mark: new THREE.LineBasicMaterial(),
+};
+const sphere = new THREE.Group(); scene.add(sphere); sphere.visible = false;
+
+function applyTheme() {
+  scene.background = col('--bg');
+  mat.zone.color = col('--zone'); mat.zoneEdge.color = col('--zone');
+  mat.hxFill.color = col('--hx'); mat.hxLine.color = col('--hx'); mat.plane.color = col('--hx');
+  mat.rod.color = col('--rod'); mat.contact.color = col('--contact');
+  mat.dim.color = col('--dim'); mat.mark.color = col('--fg');
+  paintSphere(sphereBad);
+  if (last) build(last);
+}
+let sphereBad = false;
+function paintSphere(bad) {
+  sphereBad = bad;
+  const c = col(bad ? '--bad' : '--sphere');
+  mat.sphere.color = c; mat.sphereWire.color = c;
+  mat.sphere.opacity = bad ? 0.16 : 0.10;
+}
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+
+function clear(g) { while (g.children.length) { const o = g.children.pop(); o.traverse(x => { x.geometry && x.geometry.dispose(); if (x.material && x.material.map) x.material.map.dispose(); }); } }
+
+function label(text, size = 2.2, tone = '--fg') {
+  const c = document.createElement('canvas'), x = c.getContext('2d');
+  const font = '600 44px "IBM Plex Sans", Arial, sans-serif';
+  x.font = font;
+  const w = Math.ceil(x.measureText(text).width) + 28; c.width = w; c.height = 64;
+  x.font = font;
+  x.fillStyle = css('--panel'); x.strokeStyle = css('--line'); x.lineWidth = 3;
+  x.beginPath(); x.roundRect(2, 2, w - 4, 60, 10); x.fill(); x.stroke();
+  x.fillStyle = css(tone); x.textBaseline = 'middle'; x.fillText(text, 14, 34);
+  const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: t, depthTest: false }));
+  s.scale.set(w / 64 * size, size, 1); s.renderOrder = 10;
+  return s;
+}
+function segs(points, material, dashed) {
+  const g = new THREE.BufferGeometry().setFromPoints(points.map(p => new THREE.Vector3(...p)));
+  const l = new THREE.LineSegments(g, material);
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+function loopLine(pts, z, material, dashed) {
+  const g = new THREE.BufferGeometry().setFromPoints(pts.map(p => new THREE.Vector3(p[0], p[1], z)));
+  const l = new THREE.LineLoop(g, material);
+  if (dashed) l.computeLineDistances();
+  return l;
+}
+const circlePts = (x, y, r, n = 128) => Array.from({ length: n }, (_, k) => [x + r * Math.cos(2 * Math.PI * k / n), y + r * Math.sin(2 * Math.PI * k / n)]);
+
+// ---------- построение сцены по результату расчёта ----------
+let last = null, framed = false, rodMeshes = [], dimLabels = [], pins = [], hoverRod = -1, lastP = null;
+function build(res) {
+  last = res;
+  for (const k of ['ground', 'rods', 'zone', 'hx', 'plane', 'circles', 'dims', 'path', 'equip']) clear(groups[k]);
+  rodMeshes = [];
+  if (!res) { refreshTools(); return; }
+  const { F, rods, R, hx, loops } = res;
+  const span = Math.max(F.nx, F.ny) * F.step + 40, cx = F.x0 + F.nx * F.step / 2, cy = F.y0 + F.ny * F.step / 2;
+  const g = new THREE.Mesh(new THREE.PlaneGeometry(span * 2, span * 2), new THREE.MeshStandardMaterial({ color: col('--ground'), roughness: 1 }));
+  g.position.set(cx, cy, -0.02); groups.ground.add(g);
+  const grid = new THREE.GridHelper(span * 2, Math.round(span * 2 / 5), col('--grid'), col('--grid'));
+  grid.rotation.x = Math.PI / 2; grid.position.set(Math.round(cx / 5) * 5, Math.round(cy / 5) * 5, 0); groups.ground.add(grid);
+
+  rods.forEach((r, i) => {
+    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.25, r.h, 12), mat.rod);
+    m.rotation.x = Math.PI / 2; m.position.set(r.x, r.y, r.h / 2); groups.rods.add(m);
+    const pick = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.6, r.h + 2, 8), mat.pick);
+    pick.rotation.x = Math.PI / 2; pick.position.set(r.x, r.y, r.h / 2); pick.userData.idx = i; groups.rods.add(pick); rodMeshes.push(pick);
+    const l = label(r.name); l.position.set(r.x, r.y, r.h + 2.2); groups.rods.add(l);
+  });
+
+  // поверхность границы зоны
+  const { nx, ny, h, x0, y0, step } = F;
+  const pos = new Float32Array(nx * ny * 3);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    const k = j * nx + i; pos[k * 3] = x0 + i * step; pos[k * 3 + 1] = y0 + j * step; pos[k * 3 + 2] = h[k];
+  }
+  const idx = [];
+  for (let j = 0; j < ny - 1; j++) for (let i = 0; i < nx - 1; i++) {
+    const a = j * nx + i, b = a + 1, c = a + nx + 1, d = a + nx;
+    if (h[a] > 0.01 || h[b] > 0.01 || h[c] > 0.01 || h[d] > 0.01) idx.push(a, b, c, a, c, d);
+  }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3)); geo.setIndex(idx); geo.computeVertexNormals();
+  groups.zone.add(new THREE.Mesh(geo, mat.zone));
+  const every = Math.max(1, Math.round(2 / step)), lines = [];
+  for (let j = 0; j < ny; j += every) for (let i = 0; i < nx - 1; i++) {
+    const a = j * nx + i; if (h[a] > 0.01 || h[a + 1] > 0.01) lines.push(pos[a * 3], pos[a * 3 + 1], h[a] + 0.02, pos[(a + 1) * 3], pos[(a + 1) * 3 + 1], h[a + 1] + 0.02);
+  }
+  for (let i = 0; i < nx; i += every) for (let j = 0; j < ny - 1; j++) {
+    const a = j * nx + i, b = a + nx; if (h[a] > 0.01 || h[b] > 0.01) lines.push(pos[a * 3], pos[a * 3 + 1], h[a] + 0.02, pos[b * 3], pos[b * 3 + 1], h[b] + 0.02);
+  }
+  const lg = new THREE.BufferGeometry(); lg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
+  groups.zone.add(new THREE.LineSegments(lg, mat.zoneEdge));
+
+  // оборудование: тело, верхний контур, незащищённые точки крыши
+  for (const ck of res.checks || []) {
+    const e = ck.e, tone = ck.receptor ? '--rod' : ck.min >= 0 ? '--ok' : '--bad';
+    const shape = new THREE.Shape(footprint(e).map(p => new THREE.Vector2(p[0], p[1])));
+    const body = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: e.h, bevelEnabled: false }),
+      new THREE.MeshStandardMaterial({ color: col(tone), roughness: .6, metalness: ck.receptor ? .5 : .1, transparent: true, opacity: .85 }));
+    groups.equip.add(body);
+    groups.equip.add(loopLine(footprint(e), e.h + 0.02, new THREE.LineBasicMaterial({ color: col('--fg') })));
+    if (ck.bad && ck.bad.length) {
+      const pg = new THREE.BufferGeometry().setFromPoints(ck.bad.map(([x, y]) => new THREE.Vector3(x, y, e.h + 0.06)));
+      groups.equip.add(new THREE.Points(pg, new THREE.PointsMaterial({ color: col('--bad'), size: 0.45 })));
+    }
+    const lb = label(e.name, 1.5); lb.position.set(e.x, e.y, e.h + 1.6); groups.equip.add(lb);
+  }
+  // зона на hx
+  for (const loop of loops) {
+    const shape = new THREE.Shape(loop.map(p => new THREE.Vector2(p[0], p[1])));
+    const sm = new THREE.Mesh(new THREE.ShapeGeometry(shape), mat.hxFill); sm.position.z = hx; groups.hx.add(sm);
+    groups.hx.add(loopLine(loop, hx + 0.03, mat.hxLine));
+    groups.hx.add(loopLine(loop, 0.03, new THREE.LineDashedMaterial({ color: col('--hx'), dashSize: 0.8, gapSize: 0.6 }), true));
+  }
+  // плоскость hx
+  if (hx > 0) {
+    const pl = new THREE.Mesh(new THREE.PlaneGeometry(F.nx * F.step + 10, F.ny * F.step + 10), mat.plane);
+    pl.position.set(cx, cy, hx); groups.plane.add(pl);
+    const lb = label('hx = ' + fL(hx, 1) + ' ' + UL(), 1.8, '--hx'); lb.position.set(F.x0 - 3, F.y0 - 3, hx); groups.plane.add(lb);
+  }
+  // круги r0 (на земле, пунктир) и rx (на высоте hx)
+  const dashed = new THREE.LineDashedMaterial({ color: col('--dim'), dashSize: 1, gapSize: 0.7 });
+  for (const r of rods) {
+    const r0 = r0Of(r.h, R);
+    groups.circles.add(loopLine(circlePts(r.x, r.y, r0), 0.04, dashed, true));
+    const rx = hx < r.h ? r0 - Math.sqrt(hx * (2 * R - hx)) : 0;
+    if (rx > 0) groups.circles.add(loopLine(circlePts(r.x, r.y, rx), hx + 0.04, mat.dim));
+  }
+  // размеры между стержнями (подпись кликабельна: ввод L)
+  dimLabels = [];
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j], L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (L < 1e-6 || L > 2 * R) continue;
+    const p = res.pairs.find(q => q.i === i && q.j === j);
+    const ux = (b.x - a.x) / L, uy = (b.y - a.y) / L, t = 0.8;
+    groups.dims.add(segs([[a.x, a.y, 0.06], [b.x, b.y, 0.06],
+      [a.x - uy * t, a.y + ux * t, 0.06], [a.x + uy * t, a.y - ux * t, 0.06],
+      [b.x - uy * t, b.y + ux * t, 0.06], [b.x + uy * t, b.y - ux * t, 0.06]], mat.dim));
+    const lb = label((p ? p.name + '  ' : a.name + '–' + b.name + '  ') + 'L = ' + fL(L), 1.6, '--dim');
+    lb.position.set((a.x + b.x) / 2, (a.y + b.y) / 2, 0.8); lb.userData = { i, j, L }; groups.dims.add(lb); dimLabels.push(lb);
+  }
+  pins = pins.filter(q => q.type === 'ground' || q.idx < rods.length);
+  renderPins();
+  // сфера
+  clear(sphere);
+  sphere.add(new THREE.Mesh(new THREE.SphereGeometry(R, 48, 32), mat.sphere));
+  sphere.add(new THREE.LineSegments(new THREE.WireframeGeometry(new THREE.SphereGeometry(R, 24, 12)), mat.sphereWire));
+  orbitPath = null;
+  drawMarks();
+  refreshTools();
+  if (mode === 'free' && lastP) updateFree();
+  // камера наводится заново и когда группа уехала далеко (импорт с чертежа, открытие проекта)
+  const fr = frame();
+  if (!framed || fr.c.distanceTo(frameC) > fr.s * 0.6) { framed = true; view('iso'); }
+  frameC = fr.c;
+}
+
+let frameC = new THREE.Vector3();
+function frame() {
+  if (!last) return { c: new THREE.Vector3(), s: 60 };
+  const F = last.F;
+  return { c: new THREE.Vector3(F.x0 + F.nx * F.step / 2, F.y0 + F.ny * F.step / 2, 0), s: Math.max(F.nx, F.ny) * F.step };
+}
+function view(kind) {
+  const { c, s } = frame(), d = s * 1.35;
+  controls.target.copy(c).setZ(kind === 'top' ? 0 : 5);
+  if (kind === 'top') camera.position.set(c.x, c.y - 0.01, d * 1.3);
+  else if (kind === 'front') camera.position.set(c.x, c.y - d * 1.2, 8);
+  else camera.position.set(c.x - d * 0.8, c.y - d * 0.9, d * 0.6);
+  controls.update();
+}
+$('vIso').onclick = () => view('iso');
+$('vTop').onclick = () => view('top');
+$('vFront').onclick = () => view('front');
+const toggle = (id, fn) => { const b = $(id); b.onclick = () => { const v = b.getAttribute('aria-pressed') !== 'true'; b.setAttribute('aria-pressed', v); fn(v); }; };
+toggle('tZone', v => { groups.zone.visible = v; });
+toggle('tPlane', v => { groups.plane.visible = v; });
+toggle('tCircles', v => { groups.circles.visible = v; });
+toggle('tDims', v => { groups.dims.visible = v; });
+toggle('tDrag', v => { dragMode = v; host.classList.toggle('drag', v); });
+
+// ---------- проверка положения сферы ----------
+// Возвращает список того, во что врезается сфера с центром c (кроме опорных стержней).
+function collisions(c, skip = []) {
+  const { rods, R } = last, out = [];
+  if (c.z < R - EPS) out.push('землю');
+  rods.forEach((r, k) => {
+    if (skip.includes(k)) return;
+    const dh = Math.hypot(c.x - r.x, c.y - r.y), dz = c.z > r.h ? c.z - r.h : 0;
+    if (dh * dh + dz * dz < (R - EPS) ** 2) out.push(r.name);
+  });
+  return out;
+}
+function contactsOf(c) {
+  // все объекты, которых сфера касается (с допуском 3 см)
+  const { rods, R } = last, pts = [], names = [];
+  if (Math.abs(c.z - R) < 0.03) { pts.push([c.x, c.y, 0]); names.push('землю'); }
+  rods.forEach(r => {
+    const dh = Math.hypot(c.x - r.x, c.y - r.y);
+    if (c.z >= r.h) { if (Math.abs(Math.hypot(dh, c.z - r.h) - R) < 0.03) { pts.push([r.x, r.y, r.h]); names.push(r.name); } }
+    else if (Math.abs(dh - R) < 0.03) { pts.push([r.x, r.y, c.z]); names.push(r.name); }
+  });
+  return { pts, names };
+}
+function showContacts(pts, extra = []) {
+  clear(groups.contacts);
+  for (const p of pts) {
+    const m = new THREE.Mesh(new THREE.SphereGeometry(0.45, 16, 12), mat.contact);
+    m.position.set(...p); m.renderOrder = 11; groups.contacts.add(m);
+  }
+  for (const o of extra) groups.contacts.add(o);
+}
+function placeSphere(c, skip) {
+  sphere.position.set(c.x, c.y, c.z); sphere.visible = true;
+  const bad = collisions(c, skip);
+  paintSphere(bad.length > 0);
+  return bad;
+}
+const status = bad => bad.length ? `<span class="st-bad">Сфера врезается в ${bad.join(', ')}</span>` : '<span class="st-ok">Положение допустимо</span>';
+
+// ---------- режимы ----------
+let mode = 'free', dragMode = false, playing = null, marks = [];
+const panes = { free: 'pFree', two: 'pTwo', one: 'pOne', orbit: 'pOrbit' };
+document.querySelectorAll('.seg button').forEach(b => b.onclick = () => setMode(b.dataset.mode));
+function setMode(m) {
+  mode = m; stop();
+  document.querySelectorAll('.seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  for (const k in panes) $(panes[k]).hidden = k !== m;
+  clear(groups.contacts); clear(groups.path); sphere.visible = false;
+  if (m === 'free') { if (lastP) updateFree(); else { $('roT').textContent = 'Наведите курсор на землю'; $('ro').innerHTML = 'X —, Y —'; } }
+  else updatePinned();
+}
+
+// списки пар и стержней для режимов
+function pairList() {
+  const { rods, R, pairs } = last, out = [];
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j], D = Math.hypot(b.x - a.x, b.y - a.y, b.h - a.h);
+    if (D >= 2 * R || Math.hypot(b.x - a.x, b.y - a.y) < 1e-6) continue;
+    const p = pairs.find(q => q.i === i && q.j === j);
+    out.push({ i, j, text: (p ? p.name + ': ' : '') + a.name + '–' + b.name, hc: p ? p.hc : null });
+  }
+  return out;
+}
+function refreshTools() {
+  if (!last) return;
+  const ps = pairList(), sel = $('twoPair'), prev = sel.value;
+  sel.innerHTML = ps.map(p => `<option value="${p.i}-${p.j}">${esc(p.text)}</option>`).join('') || '<option value="">нет пар ближе 2R</option>';
+  if (ps.some(p => `${p.i}-${p.j}` === prev)) sel.value = prev;
+  const rs = $('oneRod'), prevR = rs.value;
+  rs.innerHTML = last.rods.map((r, i) => `<option value="${i}">${esc(r.name)}</option>`).join('');
+  if (prevR !== '' && +prevR < last.rods.length) rs.value = prevR;
+  else outwardAz();
+  if (mode !== 'free') updatePinned();
+}
+function esc(s) { return String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+
+// сфера на двух вершинах: окружность допустимых центров
+function crease(a, b, R) {
+  const e = new THREE.Vector3(b.x - a.x, b.y - a.y, b.h - a.h), D = e.length(); e.normalize();
+  const u1 = new THREE.Vector3(-e.y, e.x, 0).normalize();
+  const u2 = new THREE.Vector3().crossVectors(e, u1); if (u2.z < 0) u2.negate();
+  const m = new THREE.Vector3((a.x + b.x) / 2, (a.y + b.y) / 2, (a.h + b.h) / 2), rho = Math.sqrt(R * R - D * D / 4);
+  // угол, при котором сфера касается земли (центр на высоте R)
+  const s = (R - m.z) / (rho * u2.z);
+  let lo;
+  if (s >= 1) lo = Math.PI / 2; else if (s <= -1) lo = 0; else lo = Math.asin(s);
+  return { m, u1, u2, rho, lo, hi: Math.PI - lo, groundless: s >= 1 };
+}
+function updateTwo() {
+  const v = $('twoPair').value;
+  if (!v) { sphere.visible = false; $('roT').textContent = 'Нет пары молниеприёмников ближе 2R'; $('ro').textContent = ''; return; }
+  const [i, j] = v.split('-').map(Number), { rods, R } = last, a = rods[i], b = rods[j];
+  const C = crease(a, b, R), s = +$('twoPos').value / 100;
+  const th = Math.PI / 2 - s * (Math.PI / 2 - C.lo);
+  const c = C.m.clone().addScaledVector(C.u1, Math.cos(th) * C.rho).addScaledVector(C.u2, Math.sin(th) * C.rho);
+  const bad = placeSphere(c, [i, j]);
+  // низ сферы над отрезком между стержнями (провис в плоскости пары)
+  let zmin = Infinity, pmin = null;
+  for (let k = 1; k < 200; k++) {
+    const t = k / 200, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, d2 = (x - c.x) ** 2 + (y - c.y) ** 2;
+    if (d2 >= R * R) continue;
+    const z = c.z - Math.sqrt(R * R - d2);
+    if (z < zmin) { zmin = z; pmin = [x, y, z]; }
+  }
+  const extra = [];
+  if (pmin) {
+    extra.push(segs([[pmin[0], pmin[1], 0], [pmin[0], pmin[1], Math.max(0, pmin[2])]], new THREE.LineDashedMaterial({ color: col('--contact'), dashSize: 0.5, gapSize: 0.35 }), true));
+    const lb = label('провис ' + fL(Math.max(0, zmin)) + ' ' + UL(), 1.7, '--contact'); lb.position.set(pmin[0], pmin[1], Math.max(0, pmin[2]) + 1.6); extra.push(lb);
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.3, 12, 8), mat.contact); dot.position.set(pmin[0], pmin[1], Math.max(0, pmin[2])); extra.push(dot);
+  }
+  extra.push(segs([[a.x, a.y, a.h], [b.x, b.y, b.h]], new THREE.LineDashedMaterial({ color: col('--contact'), dashSize: 0.6, gapSize: 0.4 }), true));
+  const ct = contactsOf(c);
+  showContacts(ct.pts, extra);
+  const pos = Math.abs(s) < 0.005 ? 'над пролётом' : (s < 0 ? 'сторона 1, ' : 'сторона 2, ') + Math.round(Math.abs(s) * 100) + '%';
+  $('twoPosV').textContent = pos;
+  const p = last.pairs.find(q => q.i === i && q.j === j);
+  $('roT').innerHTML = `Сфера опирается на ${esc(a.name)} и ${esc(b.name)}`;
+  $('ro').innerHTML = `низ сферы в плоскости пары ${fL(Math.max(0, zmin))} ${UL()}` +
+    (p ? `<br>классический hc = ${fL(p.hc)} ${UL()} (сфера над пролётом)` : '') +
+    `<br>центр сферы на высоте ${fL(c.z)} ${UL()}` +
+    (ct.names.includes('землю') ? '<br>сфера касается земли' : '') +
+    (C.groundless ? '<br>сфера не может опуститься до земли, не задев стержни' : '') +
+    `<br>${status(bad)}`;
+}
+function updateOne() {
+  const i = +$('oneRod').value, { rods, R } = last, r = rods[i];
+  if (!r) return;
+  const az = +$('oneAz').value * Math.PI / 180, p = +$('onePos').value / 100;
+  const d0 = r.h < R ? r0Of(r.h, R) : R, d = d0 * (1 - p);
+  const c = new THREE.Vector3(r.x + d * Math.cos(az), r.y + d * Math.sin(az), Math.max(R, r.h + Math.sqrt(R * R - d * d)));
+  const bad = placeSphere(c, [i]);
+  const ct = contactsOf(c);
+  const extra = [];
+  if (ct.names.includes('землю')) extra.push(segs([[r.x, r.y, 0.08], [c.x, c.y, 0.08]], new THREE.LineDashedMaterial({ color: col('--contact'), dashSize: 0.6, gapSize: 0.4 }), true));
+  showContacts(ct.pts, extra);
+  $('oneAzV').textContent = $('oneAz').value + '°';
+  $('onePosV').textContent = p === 0 ? 'касается земли' : p === 1 ? 'над вершиной' : Math.round(p * 100) + '% к вершине';
+  const r0 = r0Of(r.h, R), hx = last.hx, rx = hx < r.h ? r0 - Math.sqrt(hx * (2 * R - hx)) : NaN;
+  $('roT').innerHTML = `Сфера касается вершины ${esc(r.name)}`;
+  $('ro').innerHTML = (ct.names.includes('землю') ? `касается земли в ${fL(d)} ${UL()} от стержня (r0 = ${fL(r0)})` : `низ сферы на высоте ${fL(c.z - R)} ${UL()}`) +
+    `<br>rx на высоте hx = ${fL(rx)} ${UL()}<br>центр сферы на высоте ${fL(c.z)} ${UL()}<br>${status(bad)}`;
+}
+
+// азимут по умолчанию: наружу от центра группы, чтобы сфера не упиралась в соседей
+function outwardAz() {
+  const rods = last.rods, r = rods[+$('oneRod').value]; if (!r) return;
+  const cx = rods.reduce((s, q) => s + q.x, 0) / rods.length, cy = rods.reduce((s, q) => s + q.y, 0) / rods.length;
+  const a = Math.hypot(r.x - cx, r.y - cy) < 1e-6 ? 0 : Math.atan2(r.y - cy, r.x - cx) * 180 / Math.PI;
+  $('oneAz').value = Math.round((a + 360) % 360);
+}
+
+// обкат: центр сферы идёт по земле (z = R) вдоль границы объединения кругов r0
+let orbitPath = null, orbitS = 0;
+function buildOrbitPath() {
+  const { rods, R } = last, ext = extentOf(rods, R), step = 0.25;
+  const x0 = ext.x0, y0 = ext.y0, nx = Math.ceil((ext.x1 - x0) / step) + 1, ny = Math.ceil((ext.y1 - y0) / step) + 1;
+  const h = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+    let g = -Infinity; const x = x0 + i * step, y = y0 + j * step;
+    for (const r of rods) g = Math.max(g, r0Of(r.h, R) - Math.hypot(x - r.x, y - r.y));
+    h[j * nx + i] = g;
+  }
+  const loops = contours({ x0, y0, step, nx, ny, h }, 0);
+  if (!loops.length) return null;
+  let best = loops[0]; for (const l of loops) if (Math.abs(polyArea(l)) > Math.abs(polyArea(best))) best = l;
+  // точки на кругах r0 уточняем проекцией на ближайшую окружность
+  const pts = best.map(p => {
+    let bestD = Infinity, q = p;
+    for (const r of rods) {
+      const r0 = r0Of(r.h, R), d = Math.hypot(p[0] - r.x, p[1] - r.y), e = Math.abs(d - r0);
+      if (e < bestD && d > 1e-9) { bestD = e; q = [r.x + (p[0] - r.x) / d * r0, r.y + (p[1] - r.y) / d * r0]; }
+    }
+    return q;
+  });
+  const cum = [0];
+  for (let k = 1; k <= pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k % pts.length][0] - pts[k - 1][0], pts[k % pts.length][1] - pts[k - 1][1]));
+  return { pts, cum, len: cum[cum.length - 1] };
+}
+function updateOrbit() {
+  if (!orbitPath) {
+    orbitPath = buildOrbitPath();
+    clear(groups.path);
+    if (orbitPath) {
+      const dashed = new THREE.LineDashedMaterial({ color: col('--sphere'), dashSize: 0.8, gapSize: 0.5 });
+      groups.path.add(loopLine(orbitPath.pts, 0.06, dashed, true));
+    }
+  }
+  if (!orbitPath) return;
+  const { pts, cum, len } = orbitPath, s = ((orbitS % len) + len) % len;
+  let k = 1; while (k < cum.length - 1 && cum[k] < s) k++;
+  const a = pts[k - 1], b = pts[k % pts.length], t = (s - cum[k - 1]) / Math.max(1e-9, cum[k] - cum[k - 1]);
+  const c = new THREE.Vector3(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, last.R);
+  sphere.position.copy(c); sphere.visible = true; paintSphere(false);
+  const ct = contactsOf(c);
+  showContacts(ct.pts);
+  const rodsTouched = ct.names.filter(n => n !== 'землю');
+  $('roT').textContent = 'Сфера катится по земле вокруг группы';
+  $('ro').innerHTML = `касается: ${esc(ct.names.map(n => n === 'землю' ? 'земли' : n).join(', ') || '—')}` + `<br>пройдено ${fL(s, 1)} из ${fL(len, 1)} ${UL()}` +
+    (rodsTouched.length > 1 ? '<br>сфера в «седле» между двумя стержнями' : '');
+}
+function updatePinned() {
+  if (!last) return;
+  if (mode === 'two') updateTwo(); else if (mode === 'one') updateOne(); else if (mode === 'orbit') updateOrbit();
+}
+$('oneRod').addEventListener('input', outwardAz);
+['twoPair', 'twoPos', 'oneRod', 'oneAz', 'onePos'].forEach(id => $(id).addEventListener('input', () => { stop(); updatePinned(); }));
+
+// анимации
+const playBtns = { two: 'twoPlay', one: 'onePlay', orbit: 'orbPlay' };
+const playLabels = { two: 'Перекатить', one: 'Обкатить вокруг', orbit: 'Пуск' };
+function stop() { playing = null; for (const k in playBtns) $(playBtns[k]).textContent = '▶ ' + playLabels[k]; }
+for (const k in playBtns) $(playBtns[k]).onclick = () => {
+  const was = playing === k; stop();
+  if (!was) { playing = k; $(playBtns[k]).textContent = '⏸ Пауза'; }
+};
+let dir = 1, lastT = performance.now();
+function tick(now) {
+  const dt = Math.min(0.1, (now - lastT) / 1000); lastT = now;
+  if (!playing || !last) return;
+  if (playing === 'two') {
+    let v = +$('twoPos').value + dir * dt * 40;
+    if (v >= 100) { v = 100; dir = -1; } if (v <= -100) { v = -100; dir = 1; }
+    $('twoPos').value = v; updateTwo();
+  } else if (playing === 'one') {
+    $('oneAz').value = (+$('oneAz').value + dt * 45) % 360; updateOne();
+  } else if (playing === 'orbit') {
+    orbitS += dt * +$('orbSpeed').value; updateOrbit();
+  }
+}
+
+// ---------- курсор: свободная сфера, замеры, перетаскивание стержней ----------
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0), hit = new THREE.Vector3();
+function toGround(e) {
+  const r = renderer.domElement.getBoundingClientRect();
+  ndc.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ndc, camera);
+  return ray.ray.intersectPlane(groundPlane, hit) ? hit : null;
+}
+let dragIdx = -1, downAt = null;
+renderer.domElement.addEventListener('pointerdown', e => {
+  downAt = [e.clientX, e.clientY];
+  if (!dragMode || !last) return;
+  toGround(e);
+  const hits = ray.intersectObjects(rodMeshes);
+  if (hits.length) {
+    dragIdx = hits[0].object.userData.idx; controls.enabled = false;
+    renderer.domElement.setPointerCapture(e.pointerId);
+  }
+});
+renderer.domElement.addEventListener('pointermove', e => {
+  if (!last) return;
+  const p = toGround(e); if (!p) return;
+  if (dragIdx >= 0) {
+    const r = validRods()[dragIdx];
+    if (r) { r.x = Math.round(p.x * 100) / 100; r.y = Math.round(p.y * 100) / 100; changed(); }
+    $('roT').textContent = 'Перемещение ' + (r ? r.name : '');
+    $('ro').innerHTML = `X ${fL(p.x)}, Y ${fL(p.y)}`;
+    return;
+  }
+  const hits = ray.intersectObjects(rodMeshes);
+  hoverRod = hits.length ? hits[0].object.userData.idx : -1;
+  if (hoverRod < 0) { // запасной вариант: стержень, у основания которого курсор (в пределах 2 м)
+    let bd = 2; last.rods.forEach((r, k) => { const d = Math.hypot(p.x - r.x, p.y - r.y); if (d < bd) { bd = d; hoverRod = k; } });
+  }
+  if (mode !== 'free') return;
+  lastP = [p.x, p.y];
+  updateFree();
+});
+renderer.domElement.addEventListener('pointerup', e => {
+  if (dragIdx >= 0) { dragIdx = -1; controls.enabled = true; renderInputs(); return; }
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
+  if (!last) return;
+  toGround(e);
+  if (groups.dims.visible) {
+    const lh = ray.intersectObjects(dimLabels);
+    if (lh.length) { editL(lh[0].object.userData, e); return; }
+  }
+  if (mode !== 'free' || dragMode) return;
+  const p = toGround(e); if (!p) return;
+  marks.push([p.x, p.y]); drawMarks();
+});
+renderer.domElement.addEventListener('dblclick', e => {
+  if (!last || mode !== 'free' || dragMode) return;
+  toGround(e);
+  const hits = ray.intersectObjects(rodMeshes);
+  if (hits.length) { marks.pop(); marks.pop(); drawMarks(); pinRod(hits[0].object.userData.idx); }
+});
+
+// ввод L по клику на подпись размера
+let lpop = null;
+function editL(d, e) {
+  closeL();
+  const rods = validRods(), a = rods[d.i], b = rods[d.j]; if (!a || !b) return;
+  const main = host.parentElement, r = main.getBoundingClientRect();
+  lpop = document.createElement('div'); lpop.className = 'card lpop';
+  lpop.innerHTML = `<label for="lpopIn">${esc(a.name)}–${esc(b.name)}, L =</label><input id="lpopIn" type="number" step="any" min="0"><span class="note" style="margin:0">${UL()}, Enter</span>`;
+  lpop.style.left = Math.min(e.clientX - r.left, r.width - 230) + 'px'; lpop.style.top = Math.max(0, e.clientY - r.top - 20) + 'px';
+  main.appendChild(lpop);
+  const inp = lpop.querySelector('input'); inp.value = toIn(d.L); inp.focus(); inp.select();
+  inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') { const v = fromIn(inp.value); closeL(); if (v > 0) setPairL(a, b, v); }
+    else if (ev.key === 'Escape') closeL();
+    ev.stopPropagation();
+  });
+  const me = lpop; inp.addEventListener('blur', () => setTimeout(() => { if (lpop === me) closeL(); }, 150));
+}
+function closeL() { if (lpop) { lpop.remove(); lpop = null; } }
+// ввод координат стержня по клику на него на плане
+function editXY(r, e) {
+  closeL();
+  const main = host.parentElement, b = main.getBoundingClientRect();
+  lpop = document.createElement('div'); lpop.className = 'card lpop';
+  lpop.innerHTML = `<b>${esc(r.name)}</b><label>X <input type="number" step="any"></label><label>Y <input type="number" step="any"></label><span class="note" style="margin:0">${UL()}, Enter</span>`;
+  lpop.style.left = Math.max(0, Math.min(e.clientX - b.left + 12, b.width - 330)) + 'px'; lpop.style.top = Math.max(0, e.clientY - b.top - 20) + 'px';
+  main.appendChild(lpop);
+  const [ix, iy] = lpop.querySelectorAll('input'); ix.value = toIn(r.x); iy.value = toIn(r.y); ix.focus(); ix.select();
+  const me = lpop;
+  for (const inp of [ix, iy]) inp.addEventListener('keydown', ev => {
+    if (ev.key === 'Enter') {
+      const x = fromIn(ix.value), y = fromIn(iy.value); closeL();
+      if (Number.isFinite(x) && Number.isFinite(y)) { r.x = r2(x); r.y = r2(y); renderInputs(); changed(); drawPlan(); }
+    } else if (ev.key === 'Escape') closeL();
+    ev.stopPropagation();
+  });
+  me.addEventListener('focusout', ev => { if (!me.contains(ev.relatedTarget)) setTimeout(() => { if (lpop === me) closeL(); }, 150); });
+  me.addEventListener('pointerdown', ev => ev.stopPropagation());
+}
+
+// ---------- закрепление сферы ----------
+function sphere3(A, B, C, R) {
+  const ab = B.clone().sub(A), ac = C.clone().sub(A), n = new THREE.Vector3().crossVectors(ab, ac), n2 = n.lengthSq();
+  if (n2 < 1e-12) return [];
+  const cc = A.clone().add(new THREE.Vector3().crossVectors(n, ab).multiplyScalar(ac.lengthSq())
+    .add(new THREE.Vector3().crossVectors(ac, n).multiplyScalar(ab.lengthSq())).divideScalar(2 * n2));
+  const rc2 = cc.distanceToSquared(A);
+  if (rc2 > R * R) return [];
+  const off = Math.sqrt(R * R - rc2) / Math.sqrt(n2);
+  return [cc.clone().addScaledVector(n, off), cc.clone().addScaledVector(n, -off)];
+}
+const top = r => new THREE.Vector3(r.x, r.y, r.h);
+// Возможные положения центра при заданных закреплениях; P — точка на земле под курсором.
+function solve(pinSet, P) {
+  const { rods, R } = last, T = pinSet.filter(q => q.type === 'rod').map(q => rods[q.idx]), g = pinSet.some(q => q.type === 'ground');
+  const near = cands => {
+    const ok = cands.filter(c => c.z >= R - EPS);
+    if (!ok.length) return null;
+    const free = ok.filter(c => !collisions(c, pinSet.filter(q => q.type === 'rod').map(q => q.idx)).length);
+    const pool = free.length ? free : ok;
+    return pool.reduce((m, c) => Math.hypot(c.x - P[0], c.y - P[1]) < Math.hypot(m.x - P[0], m.y - P[1]) ? c : m);
+  };
+  if (T.length === 0) return g ? new THREE.Vector3(P[0], P[1], R) : new THREE.Vector3(P[0], P[1], zcAt(last.recv, R, P[0], P[1]));
+  if (T.length === 1) {
+    const t = T[0], dmax = t.h < R ? r0Of(t.h, R) : R;
+    let dx = P[0] - t.x, dy = P[1] - t.y, d = Math.hypot(dx, dy);
+    if (d < 1e-6) { dx = 1; dy = 0; d = 1e-6; }
+    const dd = g ? dmax : Math.min(d, dmax);
+    return new THREE.Vector3(t.x + dx / d * dd, t.y + dy / d * dd, g ? R : Math.max(R, t.h + Math.sqrt(R * R - dd * dd)));
+  }
+  if (T.length === 2) {
+    const a = T[0], b = T[1];
+    if (Math.hypot(b.x - a.x, b.y - a.y, b.h - a.h) >= 2 * R) return null;
+    const C = crease(a, b, R);
+    const at = th => C.m.clone().addScaledVector(C.u1, Math.cos(th) * C.rho).addScaledVector(C.u2, Math.sin(th) * C.rho);
+    if (g) return C.groundless ? null : near([at(C.lo), at(C.hi)]);
+    const cands = []; for (let k = 0; k < 720; k++) cands.push(at(2 * Math.PI * k / 720));
+    return near(cands);
+  }
+  if (T.length === 3 && !g) return near(sphere3(top(T[0]), top(T[1]), top(T[2]), R));
+  return null;
+}
+function pinName(q) { return q.type === 'ground' ? 'земля' : last.rods[q.idx].name; }
+function tryPin(q) {
+  if (!last || mode !== 'free') return;
+  const next = pins.concat([q]);
+  const P = lastP || [last.rods[0].x, last.rods[0].y];
+  if (next.length > 3) return flash('Сфера уже зафиксирована тремя опорами. Снимите одно закрепление (Esc).');
+  const c = solve(next, P);
+  if (!c) return flash(`Нельзя закрепить к «${pinName(q)}»: сфера не может одновременно касаться ${next.map(pinName).join(', ')} и не врезаться в землю.`);
+  const discrete = next.filter(x => x.type === 'rod').length + (next.some(x => x.type === 'ground') ? 1 : 0) >= 3;
+  const skip = next.filter(x => x.type === 'rod').map(x => x.idx);
+  if (discrete && collisions(c, skip).length) return flash(`Нельзя закрепить: в этом положении сфера врезается в ${collisions(c, skip).join(', ')}.`);
+  pins = next; frozen = null; renderPins(); updateFree();
+}
+function pinRod(i) {
+  if (pins.some(q => q.type === 'rod' && q.idx === i)) return flash(`${last.rods[i].name} уже закреплён.`);
+  tryPin({ type: 'rod', idx: i });
+}
+function pinGround() {
+  if (pins.some(q => q.type === 'ground')) return flash('Сфера уже закреплена к земле.');
+  tryPin({ type: 'ground' });
+}
+function popPin() { pins.pop(); frozen = null; renderPins(); updateFree(); }
+function clearPins() { pins = []; frozen = null; renderPins(); updateFree(); }
+// H: отцепить сферу от курсора (остаётся на месте) и прицепить обратно
+let frozen = null;
+function toggleFreeze() {
+  if (frozen) frozen = null;
+  else if (sphere.visible) frozen = sphere.position.clone();
+  else return flash('Сначала наведите курсор на сцену, чтобы появилась сфера.');
+  renderPins(); updateFree();
+}
+let flashMsg = '', flashT = 0;
+function flash(m) { flashMsg = m; flashT = performance.now(); updateFree(); }
+function renderPins() {
+  $('pins').innerHTML = (pins.length ? pins.map(q => `<span class="chip">${esc(pinName(q))}</span>`).join('') : '<span class="note" style="margin:0">Сфера не закреплена</span>')
+    + (frozen ? '<span class="chip frozen">отцеплена от курсора</span>' : '');
+  $('pinFreeze').textContent = frozen ? 'Прицепить к курсору (H)' : 'Отцепить от курсора (H)';
+  $('pinFreeze').setAttribute('aria-pressed', !!frozen);
+}
+$('pinGround').onclick = pinGround;
+$('pinPop').onclick = popPin;
+$('pinFreeze').onclick = toggleFreeze;
+document.addEventListener('keydown', e => {
+  if (e.target.closest && e.target.closest('input, select, textarea')) return;
+  if (mode !== 'free' || !last) return;
+  const k = e.key.toLowerCase();
+  if (k === 'f' || k === 'а') { if (hoverRod >= 0) pinRod(hoverRod); else flash('Наведите курсор на стержень и нажмите F.'); }
+  else if (k === 'g' || k === 'п') pinGround();
+  else if (e.key === 'Escape') popPin();
+  else if (e.key === 'Backspace') { e.preventDefault(); clearPins(); }
+  else if (k === 'h' || k === 'р') toggleFreeze();
+});
+
+function updateFree() {
+  if (!last || mode !== 'free') return;
+  const { rods, R, hx, M } = last;
+  if (!lastP) { $('roT').textContent = 'Наведите курсор на землю'; return; }
+  const P = lastP, c = frozen || solve(pins, P);
+  const skip = pins.length ? pins.filter(q => q.type === 'rod').map(q => q.idx) : rods.map((_, k) => k);
+  if (!c) { sphere.visible = false; return; }
+  const bad = placeSphere(c, skip);
+  const ct = contactsOf(c);
+  const extra = [];
+  const d = Math.hypot(P[0] - c.x, P[1] - c.y), cover = d < R ? c.z - Math.sqrt(R * R - d * d) : NaN;
+  if (Number.isFinite(cover)) {
+    const zc = Math.max(0, cover);
+    extra.push(segs([[P[0], P[1], 0], [P[0], P[1], zc]], new THREE.LineDashedMaterial({ color: col('--contact'), dashSize: 0.5, gapSize: 0.35 }), true));
+    const lb = label('покрытие ' + fL(zc) + ' ' + UL(), 1.5, '--contact'); lb.position.set(P[0], P[1], zc + 1.4); extra.push(lb);
+  }
+  showContacts(ct.pts, extra);
+  const hp = hpAt(M, P[0], P[1]);
+  const lines = [];
+  const recent = flashMsg && performance.now() - flashT < 6000;
+  if (!pins.length && !frozen) {
+    $('roT').innerHTML = recent ? `<span class="st-bad">${esc(flashMsg)}</span>` :
+      (hoverRod >= 0 ? `Под курсором ${esc(rods[hoverRod].name)}: нажмите F, чтобы закрепить сферу` :
+      hp >= hx && hx > 0 ? 'Точка защищена на высоте hx' : hp > 0 ? 'Защищена только ниже hx' : 'Точка вне зоны защиты');
+    lines.push(`X ${fL(P[0])}, Y ${fL(P[1])}`, `защищённая высота ${fL(hp)} ${UL()}`, `сфера над точкой опускается до ${fL(Math.max(0, c.z - R))} ${UL()}`);
+  } else {
+    $('roT').innerHTML = (frozen ? 'Сфера отцеплена от курсора (H — прицепить). ' : '') + (pins.length ? `Закреплено: ${esc(pins.map(pinName).join(', '))}` : '') + (hoverRod >= 0 && !pins.some(q => q.idx === hoverRod) ? ` · F — добавить ${esc(rods[hoverRod].name)}` : '');
+    lines.push(`касается: ${esc(ct.names.map(n => n === 'землю' ? 'земли' : n).join(', ') || '—')}`);
+    lines.push(`центр сферы X ${fL(c.x)}, Y ${fL(c.y)}, Z ${fL(c.z)}`);
+    lines.push(`низ сферы ${fL(c.z - R)} ${UL()} над землёй`);
+    if (Number.isFinite(cover)) {
+      const z = Math.max(0, cover), m = z - hx;
+      lines.push(`под курсором: покрытие ${fL(z)} ${UL()}`);
+      if (hx > 0) lines.push(`оборудование hx = ${fL(hx)} ${UL()}: ` + (m >= 0 ? `<span class="st-ok">защищено, запас ${fL(m)} ${UL()}</span>` : `<span class="st-bad">не защищено, сфера на ${fL(-m)} ${UL()} ниже</span>`));
+    } else lines.push('под курсором сферы нет (дальше R от центра)');
+    const pr = pins.filter(q => q.type === 'rod').map(q => rods[q.idx]);
+    if (pr.length >= 2) {
+      for (let u = 0; u < pr.length; u++) for (let v = u + 1; v < pr.length; v++) {
+        const a = pr[u], b = pr[v]; let zmin = Infinity;
+        for (let k = 1; k < 200; k++) {
+          const t = k / 200, x = a.x + (b.x - a.x) * t, y = a.y + (b.y - a.y) * t, d2 = (x - c.x) ** 2 + (y - c.y) ** 2;
+          if (d2 < R * R) zmin = Math.min(zmin, c.z - Math.sqrt(R * R - d2));
+        }
+        lines.push(`провис ${esc(a.name)}–${esc(b.name)}: ${fL(Math.max(0, zmin))} ${UL()}`);
+      }
+    }
+    if (ct.names.includes('землю')) for (const r of pr) lines.push(`${esc(r.name)} → касание земли: ${fL(Math.hypot(c.x - r.x, c.y - r.y))} ${UL()} в плане`);
+    const gaps = rods.map((r, k) => {
+      if (pins.some(q => q.type === 'rod' && q.idx === k)) return null;
+      const dh = Math.hypot(c.x - r.x, c.y - r.y), dz = c.z > r.h ? c.z - r.h : 0;
+      return { n: r.name, g: Math.hypot(dh, dz) - R };
+    }).filter(Boolean).sort((x, y) => x.g - y.g).slice(0, 3);
+    if (gaps.length) lines.push('зазор до ' + gaps.map(x => `${esc(x.n)} ${x.g < 0 ? '<span class="st-bad">' + fL(x.g) + '</span>' : fL(x.g)}`).join(', ') + ' ' + UL());
+    lines.push(status(bad));
+  }
+  if (recent && pins.length) lines.unshift(`<span class="st-bad">${esc(flashMsg)}</span>`);
+  $('ro').innerHTML = lines.join('<br>');
+}
+renderer.domElement.addEventListener('pointerleave', () => { if (mode === 'free' && !pins.length && !frozen) { sphere.visible = false; clear(groups.contacts); } });
+$('clearMarks').onclick = () => { marks = []; drawMarks(); };
+function drawMarks() {
+  drawPlan();
+  clear(groups.marks);
+  if (!last) return;
+  for (const [x, y] of marks) {
+    const hp = hpAt(last.M, x, y), ok = hp >= last.hx && last.hx > 0;
+    const tone = ok ? '--ok' : '--bad';
+    groups.marks.add(segs([[x, y, 0], [x, y, Math.max(hp, 0.3)]], new THREE.LineBasicMaterial({ color: col(tone) })));
+    const dot = new THREE.Mesh(new THREE.SphereGeometry(0.25, 12, 8), new THREE.MeshBasicMaterial({ color: col(tone) }));
+    dot.position.set(x, y, hp); groups.marks.add(dot);
+    const lb = label(fL(hp) + ' ' + UL(), 1.5, tone); lb.position.set(x, y, hp + 1.4); groups.marks.add(lb);
+  }
+}
+
+// ---------- вкладка «План» ----------
+const SVGNS = 'http://www.w3.org/2000/svg', plan = $('plan'), mainEl = host.parentElement;
+let pv = null; // видимая область плана: центр и масштаб (пикселей на метр)
+function setTab(t) {
+  for (const [id, k] of [['tab3d', '3d'], ['tabPlan', 'plan'], ['tabSec', 'sec']]) $(id).setAttribute('aria-pressed', t === k);
+  mainEl.classList.toggle('planview', t === 'plan'); mainEl.classList.toggle('secview', t === 'sec');
+  // у <svg> нет свойства hidden, только атрибут
+  plan.toggleAttribute('hidden', t !== 'plan'); $('sections').hidden = t !== 'sec'; host.style.visibility = t === '3d' ? '' : 'hidden';
+  if (t !== '3d') { if (mode !== 'free') setMode('free'); stop(); }
+  if (t === 'plan') { drawPlan(); $('roT').textContent = 'Наведите курсор на план'; $('ro').innerHTML = 'Колесо или + / − — масштаб, перетаскивание — сдвиг, клик — замер<br>стержень тяните мышью, клик по стержню — ввод X, Y'; }
+  if (t === 'sec') drawSections();
+}
+$('tab3d').onclick = () => setTab('3d');
+$('tabPlan').onclick = () => setTab('plan');
+$('tabSec').onclick = () => setTab('sec');
+$('pFit').onclick = () => { fitPlan(); drawPlan(); };
+const zoomBy = f => { if (pv) { pv.k = Math.max(0.5, Math.min(200, pv.k * f)); drawPlan(); } };
+$('pIn').onclick = () => zoomBy(1.4); $('pOut').onclick = () => zoomBy(1 / 1.4);
+let cutPick = null; // null или [] / [[x, y]] — выбор точек произвольного разреза
+$('pCut').onclick = () => { cutPick = cutPick ? null : []; $('pCut').setAttribute('aria-pressed', !!cutPick);
+  $('roT').textContent = cutPick ? 'Кликните первую точку разреза' : 'Наведите курсор на план'; };
+// размер области плана: getBoundingClientRect, потому что clientWidth у <svg> в части браузеров равен 0
+function psize() { const r = plan.getBoundingClientRect(); return { w: r.width, h: r.height }; }
+function fitPlan() { fitAll(); }
+const el = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
+const pathOf = loops => loops.map(l => 'M' + l.map(p => p[0].toFixed(3) + ' ' + (-p[1]).toFixed(3)).join('L') + 'Z').join('');
+function drawPlan() {
+  if (plan.hasAttribute('hidden') || !last) return;
+  const { w, h } = psize();
+  if (w < 10 || h < 10) { requestAnimationFrame(() => { if (psize().w >= 10) drawPlan(); }); return; }
+  if (!pv || ![pv.cx, pv.cy, pv.k].every(Number.isFinite)) fitPlan();
+  renderPlan(plan, w, h, pv);
+}
+// план в любой <svg class="plansvg"> размером w×h при виде pv (экран и экспорт)
+function renderPlan(svg, w, h, pv) {
+  const { rods, R, hx, loops } = last, k = pv.k;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.innerHTML = '';
+  // мировые координаты (x, -y) -> экран через матрицу группы
+  const g = el('g', { transform: `translate(${w / 2 - pv.cx * k} ${h / 2 + pv.cy * k}) scale(${k})` }, svg);
+  const x0 = pv.cx - w / 2 / k, x1 = pv.cx + w / 2 / k, y0 = pv.cy - h / 2 / k, y1 = pv.cy + h / 2 / k;
+  const minor = k > 12 ? 1 : k > 2 ? 5 : 25, major = minor * (k > 12 ? 5 : 2);
+  for (let x = Math.ceil(x0 / minor) * minor; x <= x1; x += minor) el('line', { x1: x, y1: -y0, x2: x, y2: -y1, class: 'grid' + (Math.abs(x % major) < 1e-9 ? ' major' : '') }, g);
+  for (let y = Math.ceil(y0 / minor) * minor; y <= y1; y += minor) el('line', { x1: x0, y1: -y, x2: x1, y2: -y, class: 'grid' + (Math.abs(y % major) < 1e-9 ? ' major' : '') }, g);
+  el('line', { x1: x0, y1: 0, x2: x1, y2: 0, class: 'axis' }, g); el('line', { x1: 0, y1: -y0, x2: 0, y2: -y1, class: 'axis' }, g);
+  drawUnderlaysPlan(g, k);
+  // зона на земле (объединение кругов r0) и на hx
+  const z0 = el('g', {}, g);
+  for (const r of rods) el('circle', { cx: r.x, cy: -r.y, r: r0Of(r.h, R), class: 'r0' }, g);
+  if (loops.length) el('path', { d: pathOf(loops), class: 'zhx' }, g);
+  for (const r of rods) {
+    const rx = hx < r.h ? r0Of(r.h, R) - Math.sqrt(hx * (2 * R - hx)) : 0;
+    if (rx > 0) el('circle', { cx: r.x, cy: -r.y, r: rx, class: 'rx' }, g);
+  }
+  // текст рисуем в экранных координатах, чтобы не масштабировался
+  const T = (x, y) => [w / 2 + (x - pv.cx) * k, h / 2 - (y - pv.cy) * k];
+  const txt = (s, x, y, attrs = {}) => { const e = el('text', Object.assign({ x, y, 'font-size': 12, class: 'halo' }, attrs), svg); e.textContent = s; return e; };
+  // размеры
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j], L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (L < 1e-6 || L > 2 * R) continue;
+    el('line', { x1: a.x, y1: -a.y, x2: b.x, y2: -b.y, class: 'dim' }, g);
+    const p = last.pairs.find(q => q.i === i && q.j === j), [mx, my] = T((a.x + b.x) / 2, (a.y + b.y) / 2);
+    let ang = Math.atan2(-(b.y - a.y), b.x - a.x) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    const t = txt((p ? p.name + '   ' : '') + 'L = ' + fL(L), mx, my - 5, { 'text-anchor': 'middle', transform: `rotate(${ang} ${mx} ${my})`, class: 'halo dimt' });
+    t.addEventListener('pointerdown', ev => ev.stopPropagation());
+    t.addEventListener('click', ev => editL({ i, j, L }, ev));
+  }
+  // произвольные разрезы
+  (state.cuts || []).forEach((c, n) => {
+    el('line', { x1: c.x1, y1: -c.y1, x2: c.x2, y2: -c.y2, stroke: css('--contact'), 'stroke-width': 1.5, 'stroke-dasharray': '8 4 2 4', 'vector-effect': 'non-scaling-stroke' }, g);
+    for (const [x, y] of [[c.x1, c.y1], [c.x2, c.y2]]) { const [sx, sy] = T(x, y); txt(`${n + 1}`, sx + 4, sy - 4, { fill: css('--contact'), 'font-weight': 700, 'font-size': 14 }); }
+  });
+  if (cutPick && cutPick.length === 1) { const [sx, sy] = T(...cutPick[0]); el('circle', { cx: sx, cy: sy, r: 4, fill: css('--contact') }, svg); }
+  // оборудование
+  for (const ck of last.checks || []) {
+    const e = ck.e, c = css(ck.receptor ? '--rod' : ck.min >= 0 ? '--ok' : '--bad');
+    el('path', { d: pathOf([footprint(e)]), fill: c, 'fill-opacity': .25, stroke: c, 'stroke-width': 1.5, 'vector-effect': 'non-scaling-stroke' }, g);
+    if (ck.bad) for (const [x, y] of ck.bad) el('rect', { x: x - 0.25, y: -y - 0.25, width: 0.5, height: 0.5, fill: css('--bad'), 'fill-opacity': .55 }, g);
+    const [sx, sy] = T(e.x, e.y);
+    txt(`${e.name}  ${fL(e.h, 1)} ${UL()}`, sx, sy + 4, { 'text-anchor': 'middle', 'font-size': 11, fill: c });
+  }
+  // стержни
+  rods.forEach(r => {
+    const [sx, sy] = T(r.x, r.y);
+    el('circle', { cx: sx, cy: sy, r: 5, class: 'rodc' }, svg);
+    txt(`${r.name}  H ${fL(r.h, 1)}`, sx + 8, sy - 8, { 'font-weight': 600 });
+  });
+  // замеры
+  for (const [x, y] of marks) {
+    const hp = hpAt(last.M, x, y), ok = hp >= hx && hx > 0, [sx, sy] = T(x, y), c = css(ok ? '--ok' : '--bad');
+    el('path', { d: `M${sx - 5} ${sy}h10M${sx} ${sy - 5}v10`, stroke: c, class: 'mk' }, svg);
+    txt(fL(hp) + ' ' + UL(), sx + 6, sy - 6, { fill: c });
+  }
+  drawAlignMarks(svg, T);
+  // масштабная линейка и подписи
+  const bar = [1, 2, 5, 10, 20, 50].find(v => v * k >= 70) || 50;
+  const bx = w - 16 - bar * k, by = h - 40;
+  el('path', { d: `M${bx} ${by}h${bar * k}M${bx} ${by - 4}v8M${bx + bar * k} ${by - 4}v8`, stroke: css('--fg'), 'stroke-width': 1.5 }, svg);
+  txt(fL(bar) + ' ' + UL(), bx + bar * k / 2, by - 7, { 'text-anchor': 'middle' });
+  if (loops.length) txt(`Зона на hx = ${fL(hx, 1)} ${UL()}: ${fmt(-loops.reduce((s, l) => s + polyArea(l), 0))} м²`, w - 16, h - 14, { 'text-anchor': 'end', fill: css('--hx'), 'font-weight': 600 });
+}
+// панорама, масштаб, замеры и подсказка на плане
+let pdrag = null;
+const toWorld = e => { const r = plan.getBoundingClientRect(), w = r.width, h = r.height; return [pv.cx + (e.clientX - r.left - w / 2) / pv.k, pv.cy - (e.clientY - r.top - h / 2) / pv.k]; };
+plan.addEventListener('wheel', e => {
+  if (!pv) return; e.preventDefault();
+  const [wx, wy] = toWorld(e), f = Math.exp(-e.deltaY * 0.0015), k2 = Math.max(0.5, Math.min(200, pv.k * f));
+  pv.cx = wx - (wx - pv.cx) * pv.k / k2; pv.cy = wy - (wy - pv.cy) * pv.k / k2; pv.k = k2; drawPlan();
+}, { passive: false });
+// стержень под курсором (в пределах 10 px на экране)
+function rodAt(e) {
+  if (!pv || !last) return null;
+  const [x, y] = toWorld(e); let best = null, bd = 10 / pv.k;
+  for (const r of last.rods) { const d = Math.hypot(r.x - x, r.y - y); if (d < bd) { bd = d; best = r; } }
+  return best;
+}
+// подсветить ввод координат в таблице, пока стержень тянут на плане
+function syncRodInputs(r) {
+  const i = state.rods.indexOf(r); if (i < 0) return;
+  const ex = $('rx' + i), ey = $('ry' + i); if (ex) ex.value = toIn(r.x); if (ey) ey.value = toIn(r.y);
+}
+plan.addEventListener('pointerdown', e => {
+  if (!pv) return;
+  const rod = cutPick || alignPick ? null : rodAt(e);
+  pdrag = { x: e.clientX, y: e.clientY, cx: pv.cx, cy: pv.cy, moved: false, rod };
+  if (rod) { const [wx, wy] = toWorld(e); pdrag.off = [rod.x - wx, rod.y - wy]; pdrag.x0 = rod.x; pdrag.y0 = rod.y; }
+  plan.setPointerCapture(e.pointerId);
+});
+plan.addEventListener('pointermove', e => {
+  if (!pv || !last) return;
+  if (pdrag) {
+    const dx = e.clientX - pdrag.x, dy = e.clientY - pdrag.y;
+    if (Math.hypot(dx, dy) > 3) pdrag.moved = true;
+    if (pdrag.moved && pdrag.rod) {
+      const r = pdrag.rod, [wx, wy] = toWorld(e);
+      // шаг перемещения зависит от масштаба: при крупном плане 10 мм, при мелком 100 мм
+      const q = pv.k > 40 ? 0.01 : pv.k > 8 ? 0.05 : 0.1;
+      r.x = Math.round((wx + pdrag.off[0]) / q) * q; r.y = Math.round((wy + pdrag.off[1]) / q) * q;
+      r.x = r2(r.x); r.y = r2(r.y);
+      syncRodInputs(r); changed(); drawPlan();
+      $('roT').textContent = `Перемещение ${r.name}`;
+      $('ro').innerHTML = `X ${fL(r.x)}, Y ${fL(r.y)} ${UL()}<br>сдвиг ΔX ${fL(r.x - pdrag.x0)}, ΔY ${fL(r.y - pdrag.y0)}`;
+      return;
+    }
+    if (pdrag.moved) { pv.cx = pdrag.cx - dx / pv.k; pv.cy = pdrag.cy + dy / pv.k; drawPlan(); return; }
+  }
+  const hov = cutPick || alignPick ? null : rodAt(e);
+  plan.style.cursor = hov ? 'move' : '';
+  if (hov) { $('roT').textContent = hov.name; $('ro').innerHTML = `X ${fL(hov.x)}, Y ${fL(hov.y)}, H ${fL(hov.h)} ${UL()}<br>тяните, чтобы переместить; клик — ввести координаты`; return; }
+  const [x, y] = toWorld(e), hp = hpAt(last.M, x, y), hx = last.hx;
+  $('roT').textContent = hp >= hx && hx > 0 ? 'Точка защищена на высоте hx' : hp > 0 ? 'Защищена только ниже hx' : 'Точка вне зоны защиты';
+  $('ro').innerHTML = `X ${fL(x)}, Y ${fL(y)}<br>защищённая высота ${fL(hp)} ${UL()}`;
+});
+plan.addEventListener('pointerup', e => {
+  if (pdrag && pdrag.rod) {
+    const r = pdrag.rod, moved = pdrag.moved; pdrag = null;
+    if (moved) { renderInputs(); changed(); } else editXY(r, e);
+    return;
+  }
+  if (pdrag && !pdrag.moved && last) {
+    if (alignPick) alignClick(toWorld(e));
+    else if (cutPick) {
+      cutPick.push(toWorld(e));
+      if (cutPick.length === 2) {
+        const [a, b] = cutPick;
+        if (Math.hypot(b[0] - a[0], b[1] - a[1]) > 1) { state.cuts = (state.cuts || []).concat([{ x1: r2(a[0]), y1: r2(a[1]), x2: r2(b[0]), y2: r2(b[1]) }]); save(); }
+        cutPick = null; $('pCut').setAttribute('aria-pressed', false);
+        $('roT').textContent = 'Разрез добавлен, он на вкладке «Разрезы»'; drawPlan();
+      } else $('roT').textContent = 'Кликните вторую точку разреза';
+    } else { marks.push(toWorld(e)); drawMarks(); }
+  }
+  pdrag = null;
+});
+new ResizeObserver(() => drawPlan()).observe(plan);
+
+// ---------- вкладка «Разрезы» ----------
+// Разрез по линии A→B: профиль зоны по 3D-огибающей, стержни у линии, оборудование,
+// для пары стержней ещё сфера на двух вершинах (классический hc) и справочная сфера сбоку.
+// геометрия разреза по линии A→B (s — расстояние вдоль линии от A, z — высота), общая для экрана и DXF
+function sectionData(A, B, opts) {
+  const { R, hx, M, rods } = last, ux = B[0] - A[0], uy = B[1] - A[1], Lab = Math.hypot(ux, uy), ex = ux / Lab, ey = uy / Lab;
+  const ext = opts.ext ?? 3, s0 = -ext, s1 = Lab + ext, S = s1 - s0;
+  const at = s => [A[0] + ex * s, A[1] + ey * s];
+  const prof = []; let hmax = 0;
+  for (let s = s0; s <= s1 + 1e-9; s += 0.1) { const [x, y] = at(s), h = hpAt(M, x, y); prof.push([s, h]); hmax = Math.max(hmax, h); }
+  const near = rods.map((r, k) => ({ r, k, s: (r.x - A[0]) * ex + (r.y - A[1]) * ey, d: Math.abs(-(r.x - A[0]) * ey + (r.y - A[1]) * ex) }))
+    .filter(q => q.d < 0.5 && q.s >= s0 && q.s <= s1);
+  for (const q of near) hmax = Math.max(hmax, q.r.h);
+  const eqs = [];
+  for (const ck of last.checks || []) {
+    let a = null, b = null;
+    for (let s = s0; s <= s1; s += 0.05) { const [x, y] = at(s); if (insideFoot(ck.e, x, y)) { if (a === null) a = s; b = s; } }
+    if (a !== null) { eqs.push({ ck, a, b }); hmax = Math.max(hmax, ck.e.h); }
+  }
+  let side = null;
+  if (opts.pair) {
+    const { a, b } = opts.pair, ra = r0Of(a.h, R), rb = r0Of(b.h, R), D = Lab;
+    if (D < ra + rb && D > Math.abs(ra - rb)) {
+      const l = (ra * ra - rb * rb + D * D) / (2 * D), off = Math.sqrt(Math.max(0, ra * ra - l * l));
+      if (off < R) { const rho = Math.sqrt(R * R - off * off); side = { l, rho, low: R - rho }; }
+    }
+  }
+  return { R, hx, Lab, s0, s1, S, prof, near, eqs, hmax, side, pair: opts.pair };
+}
+function sectionSVG(A, B, opts) {
+  let { R, hx, s0, s1, S, prof, near, eqs, hmax, side } = sectionData(A, B, opts);
+  hmax = Math.max(hmax, sectionUnderlayZmax(opts.key));
+  const top = hmax + 6, bottom = -5, W = opts.W ?? Math.max(560, Math.min(1100, sectionsBox.clientWidth - 60)), k = (W - 50) / S, Hpx = (top - bottom) * k;
+  const X = s => 30 + (s - s0) * k, Y = z => (top - z) * k;
+  const o = [];
+  // точки привязки для сечений-подложек: низ и верх стержней, углы оборудования
+  const snaps = near.flatMap(q => [[q.s, 0], [q.s, q.r.h]]).concat(eqs.flatMap(q => [[q.a, 0], [q.b, 0], [q.a, q.ck.e.h], [q.b, q.ck.e.h]])).map(p => p.map(v => Math.round(v * 1000) / 1000));
+  o.push(`<svg xmlns="http://www.w3.org/2000/svg" data-key="${esc(opts.key || '')}" data-k="${k}" data-s0="${s0}" data-top="${top}" data-snap="${JSON.stringify(snaps)}" width="${W}" height="${Hpx.toFixed(0)}" viewBox="0 0 ${W} ${Hpx.toFixed(0)}"><defs><clipPath id="clip${opts.id}"><rect x="0" y="0" width="${W}" height="${Y(0)}"/></clipPath></defs>`);
+  // зона защиты
+  o.push(`<path class="prof" d="M${X(s0)} ${Y(0)}` + prof.map(([s, h]) => `L${X(s).toFixed(1)} ${Y(h).toFixed(1)}`).join('') + `L${X(s1)} ${Y(0)}Z"/>`);
+  o.push(sectionUnderlaySvg(opts.key, 30 - s0 * k, k, top));
+  if (hx > 0) o.push(`<line class="hxl" x1="${X(s0)}" y1="${Y(hx)}" x2="${X(s1)}" y2="${Y(hx)}"/><text x="${X(s1) - 4}" y="${Y(hx) - 4}" text-anchor="end" style="fill:var(--hx)">hx = ${fL(hx, 1)}</text>`);
+  // оборудование
+  for (const q of eqs) {
+    const c = q.ck.receptor ? 'var(--rod)' : q.ck.min >= 0 ? 'var(--ok)' : 'var(--bad)';
+    o.push(`<rect x="${X(q.a)}" y="${Y(q.ck.e.h)}" width="${Math.max(1, (q.b - q.a) * k)}" height="${q.ck.e.h * k}" fill="${c}" fill-opacity=".3" stroke="${c}"/>`);
+    o.push(`<text x="${X((q.a + q.b) / 2)}" y="${Y(q.ck.e.h) - 4}" text-anchor="middle" style="fill:${c}">${esc(q.ck.e.name)} ${fL(q.ck.e.h, 1)}</text>`);
+  }
+  // сферы для пары стержней
+  if (opts.pair) {
+    const { p } = opts.pair;
+    if (p) {
+      const cs = p.cx, cz = p.cz;
+      o.push(`<g clip-path="url(#clip${opts.id})"><circle class="sph" cx="${X(cs)}" cy="${Y(cz)}" r="${R * k}"/></g>`);
+      o.push(`<line class="dimln" x1="${X(cs)}" y1="${Y(0)}" x2="${X(cs)}" y2="${Y(p.hc)}"/><text x="${X(cs) - 6}" y="${Y(p.hc) - 6}" text-anchor="end" style="fill:var(--sphere)">hc = ${fL(p.hc)}</text>`);
+    }
+    // сфера, подкатившаяся сбоку: касается обоих стержней и земли, центр вне плоскости разреза
+    if (side) {
+      const { l, rho, low } = side;
+      o.push(`<g clip-path="url(#clip${opts.id})"><circle class="sph2" cx="${X(l)}" cy="${Y(R)}" r="${rho * k}"/></g>`);
+      o.push(`<text x="${X(l) + 6}" y="${Y(low) + 14}" style="fill:var(--contact)">сфера сбоку (справочно): ${fL(low)}</text>`);
+    }
+  }
+  // стержни
+  for (const q of near) {
+    o.push(`<line class="rod" x1="${X(q.s)}" y1="${Y(0)}" x2="${X(q.s)}" y2="${Y(q.r.h)}"/>`);
+    o.push(`<text x="${X(q.s)}" y="${Y(q.r.h) - 6}" text-anchor="middle" font-weight="600">${esc(q.r.name)}  H ${fL(q.r.h, 1)}</text>`);
+  }
+  // земля и размер
+  o.push(`<line class="gnd" x1="${X(s0)}" y1="${Y(0)}" x2="${X(s1)}" y2="${Y(0)}"/>`);
+  if (near.length >= 2) {
+    const sa = near[0].s, sb = near[near.length - 1].s, yy = Y(0) + 3 * k * 0.6 + 10;
+    o.push(`<path class="dimln" d="M${X(sa)} ${Y(0) + 4}V${yy + 4}M${X(sb)} ${Y(0) + 4}V${yy + 4}M${X(sa)} ${yy}H${X(sb)}"/>`);
+    o.push(`<text x="${(X(sa) + X(sb)) / 2}" y="${yy - 4}" text-anchor="middle" style="fill:var(--dim)">L = ${fL(sb - sa)}</text>`);
+  }
+  o.push('</svg>');
+  return o.join('');
+}
+const sectionsBox = $('sections');
+function drawSections() {
+  if (sectionsBox.hidden || !last) return;
+  const { rods, R, pairs } = last, out = [];
+  const rmax = Math.max(...rods.map(r => r0Of(r.h, R)), 5);
+  pairs.forEach((p, n) => {
+    const a = rods[p.i], b = rods[p.j], h3 = hpAt(last.M, (a.x + b.x) / 2, (a.y + b.y) / 2);
+    out.push(`<div class="sec"><h3>Разрез ${p.name} <small>${esc(a.name)}–${esc(b.name)}: L = ${fL(p.L)} ${UL()}, hc = ${fL(p.hc)} ${UL()} по классике, ${fL(h3)} ${UL()} по 3D в середине пролёта</small></h3>
+      <div class="svgwrap">${sectionSVG([a.x, a.y], [b.x, b.y], { ext: Math.min(rmax, 12) + 3, pair: { a, b, p }, id: 'p' + n, key: 'p:' + p.name })}</div></div>`);
+  });
+  (state.cuts || []).forEach((c, n) => {
+    out.push(`<div class="sec"><h3>Разрез ${n + 1}-${n + 1} <small>от (${fL(c.x1, 1)}; ${fL(c.y1, 1)}) до (${fL(c.x2, 1)}; ${fL(c.y2, 1)})</small>
+      <button class="x" type="button" data-cut="${n}" aria-label="Удалить разрез" title="Удалить разрез">×</button></h3>
+      <div class="svgwrap">${sectionSVG([c.x1, c.y1], [c.x2, c.y2], { ext: 0, id: 'c' + n, key: 'c:' + n })}</div></div>`);
+  });
+  if (!out.length) out.push('<p class="empty">Разрезов нет. Пары стержней ближе 2r0 появятся здесь сами, а произвольный разрез задаётся на вкладке «План» кнопкой «Разрез по двум точкам».</p>');
+  else out.push('<p class="note">Заливка: зона защиты по 3D-огибающей. Синяя окружность: сфера на двух вершинах (классический hc). Розовый пунктир: справочный разрез сферы, подкатившейся сбоку и касающейся земли. Масштаб по горизонтали и вертикали одинаковый.</p>');
+  sectionsBox.innerHTML = out.join('');
+  sectionsBox.querySelectorAll('[data-cut]').forEach(btn => btn.onclick = () => { state.cuts.splice(+btn.dataset.cut, 1); save(); drawSections(); drawPlan(); });
+}
+new ResizeObserver(() => drawSections()).observe(sectionsBox);
+
+function resize() { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(host); resize();
+renderer.setAnimationLoop(now => { tick(now); controls.update(); renderer.render(scene, camera); });
+
+window.onResult = res => { build(res); drawPlan(); drawSections(); };
+applyTheme();
+if (typeof result !== 'undefined' && result) { build(result); drawPlan(); }
+
+// ---------- проект, экспорт, горячие клавиши ----------
+const xMsg = t => { $('xMsg').textContent = t; };
+const useCap = n => window.claude && window.claude.use ? window.claude.use(n).catch(() => null) : Promise.resolve(null);
+let dlReady = useCap('downloads');
+const baseName = () => ((state.title || 'Катящаяся сфера').replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'sfera');
+// отдать файл зрителю: через платформу, а вне неё обычной ссылкой
+async function offer(filename, data) {
+  xMsg('Готовлю окно сохранения: ' + filename + '…');
+  const dl = await dlReady;
+  if (dl) {
+    try { await dl.save({ filename, data }); xMsg('Файл передан браузеру: ' + filename + '. Он в папке «Загрузки».'); }
+    catch (e) {
+      const c = e && e.code;
+      xMsg(c === 'declined' ? 'Сохранение отменено в окне подтверждения.' : c === 'rate_limited' ? 'Окно сохранения уже открыто, подтвердите его.'
+        : 'Не удалось сохранить файл (' + (c || 'ошибка') + (e && e.message ? ': ' + e.message : '') + ').');
+    }
+    return;
+  }
+  // вне claude.ai (страница открыта как обычный файл) — обычная ссылка на скачивание
+  if (window.top !== window) {
+    const perm = await useCap('permissions'), st = perm ? await perm.state('downloads').catch(() => 'unavailable') : 'unavailable';
+    if (st === 'denied' || st === 'prompt') {
+      xMsg(st === 'denied' ? 'Сохранение файлов для этой страницы запрещено. Нажмите «Разрешить сохранение», включите его в открывшемся окне и повторите.' : 'Нужно разрешить странице сохранять файлы.');
+      const b = document.createElement('button'); b.className = 'ghost'; b.type = 'button'; b.textContent = 'Разрешить сохранение';
+      b.onclick = async () => {
+        try { if (st === 'denied') await perm.manage(); else await perm.request(['downloads']); }
+        catch (e) { xMsg('Окно разрешений не открылось. Откройте меню артефакта вверху страницы → «Разрешения» и включите сохранение файлов.'); return; }
+        dlReady = useCap('downloads'); b.remove(); offer(filename, data);
+      };
+      $('xMsg').appendChild(document.createElement('br')); $('xMsg').appendChild(b);
+    } else xMsg('В этом окне сохранение файлов недоступно. Откройте страницу отдельной вкладкой: claude.ai → «Артефакты» → «Катящаяся сфера».');
+    return;
+  }
+  const blob = data instanceof Blob ? data : new Blob([data]), a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = filename; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  xMsg('Сохранено: ' + filename);
+}
+async function busy(label, fn) {
+  if (!last) { xMsg('Сначала задайте хотя бы один молниеприёмник.'); return; }
+  xMsg(label + '…');
+  try { await fn(); } catch (e) { console.error(e); xMsg('Ошибка: ' + (e && e.message || e)); }
+}
+
+// --- проект .json
+function saveProject() {
+  const data = JSON.stringify({ format: 'sfera-project', version: 1, saved: new Date().toISOString(), project: state, underlays }, null, 1);
+  return offer(baseName() + '.json', data);
+}
+function openProject() { $('xFile').value = ''; $('xFile').click(); }
+$('xFile').addEventListener('change', async () => {
+  const f = $('xFile').files[0]; if (!f) return;
+  try {
+    const o = JSON.parse(await f.text()), p = o && o.project ? o.project : o;
+    if (!p || !Array.isArray(p.rods) || !(p.R > 0)) throw new Error('в файле нет данных проекта');
+    p.rods = p.rods.filter(r => r && Number.isFinite(+r.x) && Number.isFinite(+r.y) && +r.h > 0)
+      .map(r => ({ name: String(r.name ?? ''), x: +r.x, y: +r.y, h: +r.h }));
+    p.hx = Number.isFinite(+p.hx) ? +p.hx : 0;
+    if (Array.isArray(o.underlays)) { underlays = o.underlays; saveUnderlays(); }
+    pv = null; marks = []; drawMarks();
+    loadState(p); buildUnderlays3D();
+    xMsg('Открыт проект: ' + (p.title || f.name));
+  } catch (e) { xMsg('Не удалось открыть ' + f.name + ': ' + e.message); }
+});
+
+// --- zip (без сжатия) и crc32
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+function zip(files) {
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  const d = new Date(), dt = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(), tm = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  for (const f of files) {
+    const nm = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, c = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(10, tm, true); h.setUint16(12, dt, true);
+    h.setUint32(14, c, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nm.length, true);
+    parts.push(new Uint8Array(h.buffer), nm, data);
+    const ch = new DataView(new ArrayBuffer(46));
+    ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(12, tm, true); ch.setUint16(14, dt, true);
+    ch.setUint32(16, c, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, nm.length, true); ch.setUint32(42, off, true);
+    cen.push(new Uint8Array(ch.buffer), nm);
+    off += 30 + nm.length + data.length;
+  }
+  const size = cen.reduce((s, a) => s + a.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(e.buffer)], { type: 'application/zip' });
+}
+
+// --- разрезы, общий список для экрана и экспорта
+function sectionList() {
+  const { rods, R, pairs } = last, rmax = Math.max(...rods.map(r => r0Of(r.h, R)), 5), out = [];
+  pairs.forEach((p, n) => {
+    const a = rods[p.i], b = rods[p.j];
+    out.push({ name: p.name, sub: `${a.name}–${b.name}`, A: [a.x, a.y], B: [b.x, b.y], opts: { ext: Math.min(rmax, 12) + 3, pair: { a, b, p }, id: 'xp' + n, key: 'p:' + p.name } });
+  });
+  (state.cuts || []).forEach((c, n) => out.push({ name: `${n + 1}-${n + 1}`, sub: 'произвольный', A: [c.x1, c.y1], B: [c.x2, c.y2], opts: { ext: 0, id: 'xc' + n, key: 'c:' + n } }));
+  return out;
+}
+
+// --- DXF R12 (AutoCAD LT), единица 1 мм, кириллица в cp1251
+function cp1251(str) {
+  str = str.replace(/²/g, '2').replace(/≥/g, '>=').replace(/≤/g, '<=').replace(/[−‒]/g, '-').replace(/[  ]/g, ' ');
+  const extra = { 0x2013: 0x96, 0x2014: 0x97, 0xB0: 0xB0, 0xB1: 0xB1, 0x2116: 0xB9, 0xAB: 0xAB, 0xBB: 0xBB, 0xA0: 0xA0, 0x401: 0xA8, 0x451: 0xB8 };
+  const out = new Uint8Array(str.length);
+  for (let i = 0; i < str.length; i++) {
+    const c = str.charCodeAt(i);
+    out[i] = c < 128 ? c : c >= 0x410 && c <= 0x44F ? c - 0x350 : extra[c] ?? 63;
+  }
+  return out;
+}
+const LAYERS = [
+  ['0', 7, 'CONTINUOUS'], ['МЗ_СТЕРЖНИ', 7, 'CONTINUOUS'], ['МЗ_ЗОНА_0', 30, 'CONTINUOUS'], ['МЗ_ЗОНА_HX', 1, 'CONTINUOUS'],
+  ['МЗ_ЗОНА_RX', 8, 'CONTINUOUS'], ['МЗ_ОБОРУДОВАНИЕ', 3, 'CONTINUOUS'], ['МЗ_РАЗМЕРЫ', 4, 'CONTINUOUS'], ['МЗ_ТЕКСТ', 7, 'CONTINUOUS'],
+  ['МЗ_РАЗРЕЗЫ', 6, 'CONTINUOUS'], ['МЗ_ПРОФИЛЬ', 30, 'CONTINUOUS'], ['МЗ_СФЕРА', 5, 'CONTINUOUS'], ['МЗ_СФЕРА_СБОКУ', 6, 'DASHED']];
+function buildDXF() {
+  const { rods, R, hx, loops, F, pairs } = last, E = [];
+  const mm = v => Math.round(v * 10000) / 10;                       // метры -> мм с точностью 0,1
+  const n0 = v => String(Math.round(v * 1000));                       // подпись в мм
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const ext = (x, y) => { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y); };
+  const g = (...kv) => { for (let i = 0; i < kv.length; i += 2) E.push(kv[i], kv[i + 1]); };
+  const line = (L, a, b, lt) => { ext(a[0], a[1]); ext(b[0], b[1]); g(0, 'LINE', 8, L); if (lt) g(6, lt); g(10, mm(a[0]), 20, mm(a[1]), 30, 0, 11, mm(b[0]), 21, mm(b[1]), 31, 0); };
+  const circle = (L, c, r, lt) => { ext(c[0] - r, c[1] - r); ext(c[0] + r, c[1] + r); g(0, 'CIRCLE', 8, L); if (lt) g(6, lt); g(10, mm(c[0]), 20, mm(c[1]), 30, 0, 40, mm(r)); };
+  const arc = (L, c, r, a0, a1) => { g(0, 'ARC', 8, L, 10, mm(c[0]), 20, mm(c[1]), 30, 0, 40, mm(r), 50, +a0.toFixed(4), 51, +a1.toFixed(4)); };
+  const poly = (L, pts, closed) => {
+    g(0, 'POLYLINE', 8, L, 66, 1, 70, closed ? 1 : 0, 10, 0, 20, 0, 30, 0);
+    for (const p of pts) { ext(p[0], p[1]); g(0, 'VERTEX', 8, L, 10, mm(p[0]), 20, mm(p[1]), 30, 0); }
+    g(0, 'SEQEND', 8, L);
+  };
+  // align: 0 слева, 1 по центру, 2 справа; v: 0 по базовой линии, 1 низ, 2 середина, 3 верх
+  const text = (L, p, h, s, rot = 0, al = 0, v = 0) => {
+    ext(p[0], p[1]);
+    g(0, 'TEXT', 8, L, 7, 'MZ', 10, mm(p[0]), 20, mm(p[1]), 30, 0, 40, mm(h), 1, s);
+    if (rot) g(50, +rot.toFixed(3));
+    if (al || v) g(72, al, 73, v, 11, mm(p[0]), 21, mm(p[1]), 31, 0);
+  };
+  // ПЛАН
+  const span = Math.max(F.nx, F.ny) * F.step, th = Math.max(0.25, Math.round(span / 75 * 10) / 10);
+  for (const r of rods) {
+    circle('МЗ_СТЕРЖНИ', [r.x, r.y], 0.15);
+    line('МЗ_СТЕРЖНИ', [r.x - 0.4, r.y], [r.x + 0.4, r.y]); line('МЗ_СТЕРЖНИ', [r.x, r.y - 0.4], [r.x, r.y + 0.4]);
+    text('МЗ_ТЕКСТ', [r.x + th * 0.6, r.y + th * 0.6], th, `${r.name} H=${n0(r.h)}`);
+    circle('МЗ_ЗОНА_0', [r.x, r.y], r0Of(r.h, R), 'DASHED');
+    const rx = hx < r.h ? r0Of(r.h, R) - Math.sqrt(hx * (2 * R - hx)) : 0;
+    if (rx > 0) circle('МЗ_ЗОНА_RX', [r.x, r.y], rx);
+  }
+  for (const l of contours(F, 0.002)) poly('МЗ_ЗОНА_0', l, true);
+  for (const l of loops) poly('МЗ_ЗОНА_HX', l, true);
+  for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) {
+    const a = rods[i], b = rods[j], L = Math.hypot(b.x - a.x, b.y - a.y);
+    if (L < 1e-6 || L > 2 * R) continue;
+    line('МЗ_РАЗМЕРЫ', [a.x, a.y], [b.x, b.y]);
+    const p = pairs.find(q => q.i === i && q.j === j);
+    let ang = Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI; if (ang > 90) ang -= 180; if (ang < -90) ang += 180;
+    const nx = -Math.sin(ang * Math.PI / 180) * th * 0.4, ny = Math.cos(ang * Math.PI / 180) * th * 0.4;
+    text('МЗ_РАЗМЕРЫ', [(a.x + b.x) / 2 + nx, (a.y + b.y) / 2 + ny], th * 0.85, (p ? p.name + '  ' : '') + 'L=' + n0(L), ang, 1, 1);
+  }
+  for (const ck of last.checks || []) {
+    const e = ck.e; poly('МЗ_ОБОРУДОВАНИЕ', footprint(e, 48), true);
+    text('МЗ_ОБОРУДОВАНИЕ', [e.x, e.y], th * 0.8, `${e.name} H=${n0(e.h)}`, 0, 1, 2);
+    if (!ck.receptor && ck.min < 0) text('МЗ_ОБОРУДОВАНИЕ', [e.x, e.y - th * 1.1], th * 0.7, `не защищён, недобор ${n0(-ck.min)}`, 0, 1, 2);
+  }
+  (state.cuts || []).forEach((c, n) => {
+    line('МЗ_РАЗРЕЗЫ', [c.x1, c.y1], [c.x2, c.y2]);
+    text('МЗ_РАЗРЕЗЫ', [c.x1, c.y1 + th * 0.4], th, String(n + 1), 0, 1, 1); text('МЗ_РАЗРЕЗЫ', [c.x2, c.y2 + th * 0.4], th, String(n + 1), 0, 1, 1);
+  });
+  const px0 = x0, py0 = y0, px1 = x1, py1 = y1;
+  const area = -loops.reduce((s, l) => s + polyArea(l), 0);
+  const info = [`${state.title || 'Объект'}: зона защиты методом катящейся сферы`, `R = ${n0(R)} мм, hx = ${n0(hx)} мм. Размеры в мм.`,
+    loops.length ? `Площадь зоны на высоте hx: ${fmt(area)} м²` : 'Зоны на высоте hx нет'];
+  info.forEach((s, i) => text('МЗ_ТЕКСТ', [px0, py0 - th * 2 - i * th * 1.8], th, s));
+  // РАЗРЕЗЫ справа от плана, друг под другом
+  const sx0 = px1 + Math.max(10, span * 0.15); let top = py1;
+  for (const sec of sectionList()) {
+    const d = sectionData(sec.A, sec.B, sec.opts), ox = sx0 - d.s0, gy = top - (d.hmax + 3 + th * 2);
+    const P = (s, z) => [ox + s, gy + z];
+    text('МЗ_ТЕКСТ', P(d.s0, d.hmax + 2 + th), th * 1.3, `Разрез ${sec.name}  (${sec.sub})`);
+    line('МЗ_РАЗРЕЗЫ', P(d.s0, 0), P(d.s1, 0));
+    poly('МЗ_ПРОФИЛЬ', [P(d.s0, 0), ...d.prof.map(([s, h]) => P(s, h)), P(d.s1, 0)], false);
+    if (hx > 0) { line('МЗ_ЗОНА_HX', P(d.s0, hx), P(d.s1, hx)); text('МЗ_ЗОНА_HX', P(d.s1, hx + th * 0.3), th * 0.8, `hx=${n0(hx)}`, 0, 2, 1); }
+    for (const q of d.eqs) {
+      poly('МЗ_ОБОРУДОВАНИЕ', [P(q.a, 0), P(q.b, 0), P(q.b, q.ck.e.h), P(q.a, q.ck.e.h)], true);
+      text('МЗ_ОБОРУДОВАНИЕ', P((q.a + q.b) / 2, q.ck.e.h + th * 0.3), th * 0.8, `${q.ck.e.name} ${n0(q.ck.e.h)}`, 0, 1, 1);
+    }
+    if (d.pair && d.pair.p) {
+      const p = d.pair.p, c = P(p.cx, p.cz), deg = (s, z) => (Math.atan2(z - p.cz, s - p.cx) * 180 / Math.PI + 360) % 360;
+      arc('МЗ_СФЕРА', c, R, deg(0, d.pair.a.h), deg(d.Lab, d.pair.b.h));
+      line('МЗ_РАЗМЕРЫ', P(p.cx, 0), P(p.cx, p.hc));
+      text('МЗ_РАЗМЕРЫ', P(p.cx - th * 0.3, p.hc + th * 0.3), th * 0.8, `hc=${n0(p.hc)}`, 0, 2, 1);
+    }
+    if (d.side) {
+      const sa = s => 360 - Math.acos(Math.max(-1, Math.min(1, (s - d.side.l) / d.side.rho))) * 180 / Math.PI;
+      arc('МЗ_СФЕРА_СБОКУ', P(d.side.l, R), d.side.rho, sa(0), sa(d.Lab));
+      text('МЗ_СФЕРА_СБОКУ', P(d.side.l, d.side.low - th * 1.2), th * 0.7, `сфера сбоку (справочно) ${n0(d.side.low)}`, 0, 1, 3);
+    }
+    for (const q of d.near) {
+      line('МЗ_СТЕРЖНИ', P(q.s, 0), P(q.s, q.r.h));
+      text('МЗ_ТЕКСТ', P(q.s, q.r.h + th * 0.4), th * 0.9, `${q.r.name} H=${n0(q.r.h)}`, 0, 1, 1);
+    }
+    if (d.near.length >= 2) {
+      const sa = d.near[0].s, sb = d.near[d.near.length - 1].s, yy = -th * 2;
+      line('МЗ_РАЗМЕРЫ', P(sa, yy), P(sb, yy)); line('МЗ_РАЗМЕРЫ', P(sa, -0.3), P(sa, yy - 0.5)); line('МЗ_РАЗМЕРЫ', P(sb, -0.3), P(sb, yy - 0.5));
+      text('МЗ_РАЗМЕРЫ', P((sa + sb) / 2, yy + th * 0.3), th * 0.9, `L=${n0(sb - sa)}`, 0, 1, 1);
+    }
+    top = gy - th * 5;
+  }
+  // заголовок файла и таблицы
+  const H = [];
+  const h = (...kv) => { for (let i = 0; i < kv.length; i += 2) H.push(kv[i], kv[i + 1]); };
+  h(0, 'SECTION', 2, 'HEADER', 9, '$ACADVER', 1, 'AC1009', 9, '$DWGCODEPAGE', 3, 'ANSI_1251', 9, '$INSBASE', 10, 0, 20, 0, 30, 0,
+    9, '$EXTMIN', 10, mm(x0), 20, mm(y0), 30, 0, 9, '$EXTMAX', 10, mm(x1), 20, mm(y1), 30, 0, 9, '$LTSCALE', 40, 1, 9, '$TEXTSTYLE', 7, 'MZ', 0, 'ENDSEC');
+  h(0, 'SECTION', 2, 'TABLES',
+    0, 'TABLE', 2, 'LTYPE', 70, 2,
+    0, 'LTYPE', 2, 'CONTINUOUS', 70, 0, 3, 'Solid line', 72, 65, 73, 0, 40, 0,
+    0, 'LTYPE', 2, 'DASHED', 70, 0, 3, '__ __ __', 72, 65, 73, 2, 40, 1500, 49, 1000, 49, -500,
+    0, 'ENDTAB', 0, 'TABLE', 2, 'LAYER', 70, LAYERS.length);
+  for (const [n, c, lt] of LAYERS) h(0, 'LAYER', 2, n, 70, 0, 62, c, 6, lt);
+  h(0, 'ENDTAB', 0, 'TABLE', 2, 'STYLE', 70, 1, 0, 'STYLE', 2, 'MZ', 70, 0, 40, 0, 41, 1, 50, 0, 71, 0, 42, 250, 3, 'arial.ttf', 4, '', 0, 'ENDTAB', 0, 'ENDSEC');
+  h(0, 'SECTION', 2, 'ENTITIES'); H.push(...E); h(0, 'ENDSEC', 0, 'EOF');
+  let out = '';
+  for (let i = 0; i < H.length; i += 2) out += String(H[i]).padStart(3, ' ') + '\r\n' + H[i + 1] + '\r\n';
+  return cp1251(out);
+}
+function exportDXF() {
+  return busy('Готовлю DXF', async () => {
+    const name = baseName();
+    await offer(name + ' DXF.zip', zip([{ name: name + '.dxf', data: buildDXF() }]));
+  });
+}
+
+// --- растр: svg -> canvas, с подстановкой вычисленных стилей
+const SVG_PROPS = ['fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-dasharray', 'stroke-opacity', 'stroke-linejoin', 'opacity',
+  'font-family', 'font-size', 'font-weight', 'text-anchor', 'paint-order', 'vector-effect'];
+function svgImage(svg, scale) {
+  const clone = svg.cloneNode(true), src = [svg, ...svg.querySelectorAll('*')], dst = [clone, ...clone.querySelectorAll('*')];
+  src.forEach((e, i) => { const cs = getComputedStyle(e); dst[i].setAttribute('style', SVG_PROPS.map(p => `${p}:${cs.getPropertyValue(p)}`).join(';')); });
+  clone.removeAttribute('hidden'); clone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+  const vb = svg.viewBox.baseVal, w = vb && vb.width || svg.width.baseVal.value, h = vb && vb.height || svg.height.baseVal.value;
+  clone.setAttribute('width', w); clone.setAttribute('height', h);
+  const url = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(new XMLSerializer().serializeToString(clone));
+  return new Promise((res, rej) => {
+    const img = new Image();
+    img.onload = () => { const c = document.createElement('canvas'); c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+      const g = c.getContext('2d'); g.fillStyle = css('--panel'); g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height); res(c); };
+    img.onerror = () => rej(new Error('не удалось нарисовать чертёж'));
+    img.src = url;
+  });
+}
+// временная сцена вне экрана, чтобы на svg действовали стили страницы
+function stage() { let s = $('xStage'); if (!s) { s = document.createElement('div'); s.id = 'xStage'; s.className = 'sec'; s.style.cssText = 'position:fixed;left:-20000px;top:0;width:1200px'; document.body.appendChild(s); } s.innerHTML = ''; return s; }
+async function planCanvas(w, scale) {
+  const F = last.F, sx = F.nx * F.step, sy = F.ny * F.step;
+  const h = Math.round(Math.max(420, Math.min(1500, w * sy / sx + 90)));
+  const v = { cx: F.x0 + sx / 2, cy: F.y0 + sy / 2, k: Math.min((w - 40) / sx, (h - 90) / sy) };
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg'); svg.setAttribute('class', 'plansvg'); stage().appendChild(svg);
+  renderPlan(svg, w, h, v);
+  const c = await svgImage(svg, scale); stage(); return c;
+}
+async function sectionCanvas(sec, W, scale) {
+  const st = stage(); st.innerHTML = sectionSVG(sec.A, sec.B, Object.assign({}, sec.opts, { W }));
+  const c = await svgImage(st.querySelector('svg'), scale); stage(); return c;
+}
+function snap3D() { renderer.render(scene, camera); const c = document.createElement('canvas'), s = renderer.domElement; c.width = s.width; c.height = s.height; c.getContext('2d').drawImage(s, 0, 0); return c; }
+// экспорт рисуем в светлой теме, затем возвращаем как было
+async function inLight(fn) {
+  const root = document.documentElement, prev = root.getAttribute('data-theme');
+  root.setAttribute('data-theme', 'light'); await new Promise(r => setTimeout(r, 0)); applyTheme();
+  try { return await fn(); }
+  finally { if (prev === null) root.removeAttribute('data-theme'); else root.setAttribute('data-theme', prev); await new Promise(r => setTimeout(r, 0)); applyTheme(); }
+}
+const canvasBlob = (c, type, q) => new Promise(r => c.toBlob(r, type, q));
+
+// --- PNG текущего вида
+function exportPNG() {
+  return busy('Готовлю PNG', async () => {
+    const tab = mainEl.classList.contains('planview') ? 'plan' : mainEl.classList.contains('secview') ? 'sec' : '3d';
+    let c, suffix;
+    if (tab === '3d') { c = snap3D(); suffix = '3D'; }
+    else if (tab === 'plan') { c = await svgImage(plan, 2); suffix = 'план'; }
+    else {
+      const parts = [], W = 1100;
+      for (const sec of sectionList()) parts.push([sec, await sectionCanvas(sec, W, 2)]);
+      if (!parts.length) { xMsg('Разрезов нет.'); return; }
+      c = document.createElement('canvas'); c.width = W * 2 + 40; c.height = parts.reduce((s, [, p]) => s + p.height + 90, 20);
+      const g = c.getContext('2d'); g.fillStyle = css('--panel'); g.fillRect(0, 0, c.width, c.height);
+      let y = 20; g.fillStyle = css('--fg');
+      for (const [sec, p] of parts) { g.font = '600 32px Arial, sans-serif'; g.fillText(`Разрез ${sec.name}  ${sec.sub}`, 20, y + 40); g.drawImage(p, 20, y + 60); y += p.height + 90; }
+      suffix = 'разрезы';
+    }
+    await offer(`${baseName()} ${suffix}.png`, await canvasBlob(c, 'image/png'));
+  });
+}
+
+// --- PDF-отчёт: страницы А4 рисуются на canvas и вкладываются как JPEG
+const PW = 1654, PH = 2339, MMP = PW / 210;
+function pdfFromPages(pages, jpgs) {
+  const enc = new TextEncoder(), chunks = [], offs = []; let len = 0;
+  const put = x => { const b = typeof x === 'string' ? enc.encode(x) : x; chunks.push(b); len += b.length; };
+  const obj = (n, body) => { offs[n] = len; put(`${n} 0 obj\n`); body(); put('\nendobj\n'); };
+  const N = pages.length, W = 595.28, H = 841.89, cnt = `q ${W} 0 0 ${H} 0 0 cm /Im0 Do Q`;
+  put('%PDF-1.4\n%âã\n');
+  obj(1, () => put('<< /Type /Catalog /Pages 2 0 R >>'));
+  obj(2, () => put(`<< /Type /Pages /Kids [${pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] /Count ${N} >>`));
+  pages.forEach((c, i) => {
+    obj(3 + 3 * i, () => put(`<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${W} ${H}] /Resources << /XObject << /Im0 ${5 + 3 * i} 0 R >> >> /Contents ${4 + 3 * i} 0 R >>`));
+    obj(4 + 3 * i, () => put(`<< /Length ${cnt.length} >>\nstream\n${cnt}\nendstream`));
+    obj(5 + 3 * i, () => { put(`<< /Type /XObject /Subtype /Image /Width ${c.width} /Height ${c.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpgs[i].length} >>\nstream\n`); put(jpgs[i]); put('\nendstream'); });
+  });
+  const xref = len, n = 3 + 3 * N;
+  put(`xref\n0 ${n}\n0000000000 65535 f \n` + offs.slice(1).map(o => String(o).padStart(10, '0') + ' 00000 n \n').join(''));
+  put(`trailer\n<< /Size ${n} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`);
+  return new Blob(chunks, { type: 'application/pdf' });
+}
+function report() {
+  const pages = []; let g, y;
+  const title = state.title || 'Объект', date = new Date().toLocaleDateString('ru-RU');
+  const font = (mm, w = 400) => { g.font = `${w} ${mm * MMP}px Arial, "Helvetica Neue", sans-serif`; };
+  const page = () => {
+    const c = document.createElement('canvas'); c.width = PW; c.height = PH; g = c.getContext('2d');
+    g.fillStyle = '#fff'; g.fillRect(0, 0, PW, PH); pages.push(c);
+    g.fillStyle = '#5b6876'; font(3); g.fillText('Зона молниезащиты методом катящейся сферы', 15 * MMP, 10 * MMP);
+    g.textAlign = 'right'; g.fillText(`${title} · ${date} · лист ${pages.length}`, 195 * MMP, 10 * MMP); g.textAlign = 'left';
+    g.strokeStyle = '#d5dbe2'; g.lineWidth = 2; g.beginPath(); g.moveTo(15 * MMP, 12.5 * MMP); g.lineTo(195 * MMP, 12.5 * MMP); g.stroke();
+    y = 20;
+  };
+  const need = h => { if (!g || y + h > 282) page(); };
+  const txt = (s, x, size = 3.5, w = 400, color = '#18212b', align = 'left') => { font(size, w); g.fillStyle = color; g.textAlign = align; g.fillText(s, x * MMP, y * MMP); g.textAlign = 'left'; };
+  const h2 = s => { need(14); y += 7; txt(s, 15, 4.6, 600); y += 3; };
+  const para = (s, size = 3.3, color = '#18212b') => {
+    font(size); const words = s.split(' '); let ln = '';
+    for (const w of words) { const t = ln ? ln + ' ' + w : w; if (g.measureText(t).width > 180 * MMP && ln) { need(5); y += size * 1.45; txt(ln, 15, size, 400, color); ln = w; } else ln = t; }
+    if (ln) { need(5); y += size * 1.45; txt(ln, 15, size, 400, color); }
+  };
+  // table: cols [{t, w, right}], rows of strings; color per row optional
+  const table = (cols, rows) => {
+    const rh = 6.2, head = () => { need(rh + 2); y += rh; let x = 15; for (const c of cols) { txt(c.t, c.right ? x + c.w - 1.5 : x + 1, 3, 600, '#5b6876', c.right ? 'right' : 'left'); x += c.w; } y += 1.6;
+      g.strokeStyle = '#18212b'; g.lineWidth = 2; g.beginPath(); g.moveTo(15 * MMP, y * MMP); g.lineTo(195 * MMP, y * MMP); g.stroke(); };
+    head();
+    for (const r of rows) {
+      if (y + rh > 282) { page(); head(); }
+      y += rh; let x = 15;
+      cols.forEach((c, i) => { const v = r.cells[i]; txt(String(v ?? ''), c.right ? x + c.w - 1.5 : x + 1, 3.2, 400, r.color && i === cols.length - 1 ? r.color : '#18212b', c.right ? 'right' : 'left'); x += c.w; });
+      y += 1.6; g.strokeStyle = '#d5dbe2'; g.lineWidth = 1; g.beginPath(); g.moveTo(15 * MMP, y * MMP); g.lineTo(195 * MMP, y * MMP); g.stroke();
+    }
+  };
+  // заголовок и рисунок держим на одном листе
+  const image = (title, c, maxH) => {
+    let w = 180, h = w * c.height / c.width; if (h > maxH) { h = maxH; w = h * c.width / c.height; }
+    need(h + 18); h2(title); y += 3; g.drawImage(c, (15 + (180 - w) / 2) * MMP, y * MMP, w * MMP, h * MMP);
+    g.strokeStyle = '#d5dbe2'; g.lineWidth = 1; g.strokeRect((15 + (180 - w) / 2) * MMP, y * MMP, w * MMP, h * MMP); y += h;
+  };
+  return { pages, page, need, txt, h2, para, table, image, y: () => y, addY: d => { y += d; } };
+}
+function exportPDF() {
+  return busy('Готовлю PDF', () => inLight(async () => {
+    const { rods, R, hx, pairs, loops, M } = last, u = UL(), rp = report();
+    const lvl = { 20: 'I', 30: 'II', 45: 'III', 60: 'IV' }[R];
+    rp.page();
+    rp.addY(4); rp.txt('Расчёт зоны молниезащиты', 15, 7, 600); rp.addY(8); rp.txt('методом катящейся сферы (СП РК 2.04-103-2013)', 15, 4.5, 400, '#5b6876');
+    rp.addY(9); rp.txt('Объект: ' + (state.title || '—'), 15, 4.2, 600);
+    rp.h2('Исходные данные');
+    rp.para(`Радиус сферы R = ${fL(R)} ${u}${lvl ? ` (уровень защиты ${lvl})` : ''}. Высота проверки hx = ${fL(hx)} ${u}. Молниеприёмников: ${rods.length}. Размеры в ${MM() ? 'миллиметрах' : 'метрах'}.`);
+    rp.h2('Молниеприёмники и одиночная зона');
+    rp.table([{ t: 'Имя', w: 30 }, { t: `X, ${u}`, w: 30, right: 1 }, { t: `Y, ${u}`, w: 30, right: 1 }, { t: `H, ${u}`, w: 30, right: 1 }, { t: `r0, ${u}`, w: 30, right: 1 }, { t: `rx, ${u}`, w: 30, right: 1 }],
+      rods.map(r => { const r0 = r0Of(r.h, R), rx = hx < r.h ? r0 - Math.sqrt(hx * (2 * R - hx)) : NaN; return { cells: [r.name, fL(r.x), fL(r.y), fL(r.h), fL(r0), rx > 0 ? fL(rx) : '—'] }; }));
+    rp.para('r0 = √(H(2R − H)), rx = r0 − √(hx(2R − hx))', 3, '#5b6876');
+    rp.h2('Провис между парами');
+    if (pairs.length) rp.table([{ t: 'Разрез', w: 22 }, { t: 'Пара', w: 30 }, { t: `L, ${u}`, w: 28, right: 1 }, { t: `hc, ${u}`, w: 28, right: 1 }, { t: `3D, ${u}`, w: 28, right: 1 }, { t: 'Проверка', w: 44 }],
+      pairs.map(p => { const a = rods[p.i], b = rods[p.j], h3 = hpAt(M, (a.x + b.x) / 2, (a.y + b.y) / 2), ok = p.hc >= hx, ok3 = h3 >= hx;
+        return { cells: [p.name, `${a.name}–${b.name}`, fL(p.L), fL(p.hc), fL(h3), !ok ? 'hc < hx' : ok3 ? 'hc ≥ hx' : 'hc ≥ hx, 3D < hx'], color: !ok ? '#b42318' : ok3 ? '#157a3c' : '#8a5600' }; }));
+    else rp.para('Пар со сферой, опёртой на две вершины, нет.');
+    rp.para('hc = H − (R − √(R² − (L/2)²)). Колонка «3D» справочная: защищённая высота в середине пролёта по 3D-огибающей.', 3, '#5b6876');
+    const checks = last.checks || [];
+    if (checks.length) {
+      rp.h2('Оборудование');
+      rp.table([{ t: 'Название', w: 44 }, { t: 'Форма, размеры', w: 50 }, { t: `H, ${u}`, w: 24, right: 1 }, { t: 'Результат', w: 62 }],
+        checks.map(c => { const e = c.e, dims = e.shape === 'cyl' ? `цилиндр Ø${fL(e.l)}` : `блок ${fL(e.l)}×${fL(e.w)}`;
+          return { cells: [e.name, dims, fL(e.h), c.receptor ? 'молниеприёмник' : c.min >= 0 ? `защищён, запас ${fL(c.min)}` : `не защищён, недобор ${fL(-c.min)}`],
+            color: c.receptor ? '#5b6876' : c.min >= 0 ? '#157a3c' : '#b42318' }; }));
+    }
+    rp.h2('Зона на высоте hx');
+    rp.para(loops.length ? `Площадь зоны: ${fmt(-loops.reduce((s, l) => s + polyArea(l), 0))} м², контуров: ${loops.length}.` : 'На высоте hx зоны нет.');
+    rp.image('План', await planCanvas(1100, 2), 200);
+    rp.image('3D-вид', snap3D(), 130);
+    for (const sec of sectionList()) rp.image(`Разрез ${sec.name} (${sec.sub})`, await sectionCanvas(sec, 1100, 2), 110);
+    const jpgs = [];
+    for (const c of rp.pages) jpgs.push(new Uint8Array(await (await canvasBlob(c, 'image/jpeg', 0.9)).arrayBuffer()));
+    await offer(baseName() + ' отчёт.pdf', pdfFromPages(rp.pages, jpgs));
+  }));
+}
+
+// --- Excel .xlsx (минимальная книга)
+const xesc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const colName = j => String.fromCharCode(65 + j);
+function sheetXml(rows, widths) {
+  const body = rows.map((r, i) => `<row r="${i + 1}">` + r.map((c, j) => {
+    const b = c && typeof c === 'object', v = b ? c.v : c, ref = colName(j) + (i + 1), st = b ? ' s="1"' : '';
+    if (v === null || v === undefined || v === '') return '';
+    if (typeof v === 'number') return Number.isFinite(v) ? `<c r="${ref}"${st}><v>${v}</v></c>` : '';
+    return `<c r="${ref}" t="inlineStr"${st}><is><t>${xesc(v)}</t></is></c>`;
+  }).join('') + '</row>').join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><cols>${widths.map((w, j) => `<col min="${j + 1}" max="${j + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${body}</sheetData></worksheet>`;
+}
+function buildXLSX() {
+  const { rods, R, hx, pairs, loops, M } = last, u = UL(), num = v => !Number.isFinite(v) ? null : MM() ? Math.round(v * 1000) : Math.round(v * 1000) / 1000;
+  const B = v => ({ v }), sheets = [];
+  sheets.push(['Исходные данные', [[B('Параметр'), B('Значение')], ['Объект', state.title || ''], [`Радиус сферы R, ${u}`, num(R)], [`Высота проверки hx, ${u}`, num(hx)],
+    ['Единицы', MM() ? 'мм' : 'м'], ['Площадь зоны на hx, м²', loops.length ? Math.round(-loops.reduce((s, l) => s + polyArea(l), 0) * 100) / 100 : null], ['Контуров зоны на hx', loops.length]], [30, 22]]);
+  sheets.push(['Молниеприёмники', [[B('Имя'), B(`X, ${u}`), B(`Y, ${u}`), B(`H, ${u}`), B(`r0, ${u}`), B(`rx, ${u}`)],
+    ...rods.map(r => { const r0 = r0Of(r.h, R), rx = hx < r.h ? r0 - Math.sqrt(hx * (2 * R - hx)) : NaN; return [r.name, num(r.x), num(r.y), num(r.h), num(r0), rx > 0 ? num(rx) : null]; })], [14, 12, 12, 12, 12, 12]]);
+  sheets.push(['Провис', [[B('Разрез'), B('Пара'), B(`L, ${u}`), B(`hc, ${u}`), B(`3D, ${u}`), B('Проверка')],
+    ...pairs.map(p => { const a = rods[p.i], b = rods[p.j], h3 = hpAt(M, (a.x + b.x) / 2, (a.y + b.y) / 2);
+      return [p.name, `${a.name}–${b.name}`, num(p.L), num(p.hc), num(h3), p.hc < hx ? 'hc < hx' : h3 >= hx ? 'hc ≥ hx' : 'hc ≥ hx, 3D < hx']; })], [10, 14, 12, 12, 12, 18]]);
+  sheets.push(['Оборудование', [[B('Название'), B('Форма'), B(`X, ${u}`), B(`Y, ${u}`), B(`Длина или диаметр, ${u}`), B(`Ширина, ${u}`), B(`Высота, ${u}`), B('Поворот, °'), B('Результат'), B(`Запас (+) или недобор (−), ${u}`)],
+    ...(last.checks || []).map(c => { const e = c.e; return [e.name, e.shape === 'cyl' ? 'цилиндр' : 'блок', num(e.x), num(e.y), num(e.l), e.shape === 'cyl' ? null : num(e.w), num(e.h), e.shape === 'cyl' ? null : (e.rot || 0),
+      c.receptor ? 'молниеприёмник' : c.min >= 0 ? 'защищён' : 'не защищён', c.receptor ? null : num(c.min)]; })], [22, 10, 11, 11, 14, 11, 11, 11, 16, 16]]);
+  const ct = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`;
+  const rels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`;
+  const wb = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${xesc(s[0])}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets></workbook>`;
+  const wbr = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join('')}<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`;
+  const sty = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`;
+  return zip([{ name: '[Content_Types].xml', data: ct }, { name: '_rels/.rels', data: rels }, { name: 'xl/workbook.xml', data: wb }, { name: 'xl/_rels/workbook.xml.rels', data: wbr }, { name: 'xl/styles.xml', data: sty },
+    ...sheets.map((s, i) => ({ name: `xl/worksheets/sheet${i + 1}.xml`, data: sheetXml(s[1], s[2]) }))]);
+}
+function exportXLSX() { return busy('Готовлю Excel', () => offer(baseName() + '.xlsx', buildXLSX())); }
+
+$('xSave').onclick = saveProject; $('xOpen').onclick = openProject;
+$('xDxf').onclick = exportDXF; $('xPdf').onclick = exportPDF; $('xXlsx').onclick = exportXLSX; $('xPng').onclick = exportPNG;
+
+// --- справка и горячие клавиши
+const keysDlg = $('keysDlg');
+const showKeys = on => { keysDlg.hidden = !on; if (on) $('keysClose').focus(); };
+$('keysBtn').onclick = () => showKeys(keysDlg.hidden);
+$('keysClose').onclick = () => showKeys(false);
+keysDlg.addEventListener('pointerdown', e => { if (e.target === keysDlg) showKeys(false); });
+const tabNow = () => mainEl.classList.contains('planview') ? 'plan' : mainEl.classList.contains('secview') ? 'sec' : '3d';
+window.addEventListener('keydown', e => {
+  const c = e.code, mod = e.ctrlKey || e.metaKey;
+  if (mod && !e.altKey) {
+    const act = { KeyS: saveProject, KeyO: openProject, KeyE: exportDXF, KeyP: exportPDF }[c];
+    if (act) { e.preventDefault(); e.stopPropagation(); act(); return; }
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (c === 'KeyZ' || c === 'KeyY') { e.preventDefault(); e.stopPropagation(); undo(c === 'KeyY' || e.shiftKey ? 1 : -1); return; }
+    return;
+  }
+  if (!keysDlg.hidden) { if (e.key === 'Escape' || c === 'F1' || e.key === '?') { e.preventDefault(); e.stopPropagation(); showKeys(false); } return; }
+  if (e.target.closest && e.target.closest('input, select, textarea')) return;
+  if (e.altKey) return;
+  if (e.key === '?' || c === 'F1' || (c === 'Slash' && e.shiftKey)) { e.preventDefault(); showKeys(true); return; }
+  // кнопки режимов сферы ищутся по data-mode
+  const tab = tabNow(), click = id => { const b = ['free', 'two', 'one', 'orbit'].includes(id) ? document.querySelector(`[data-mode="${id}"]`) : $(id); if (b) b.click(); };
+  const map = {
+    Digit1: () => setTab('3d'), Digit2: () => setTab('plan'), Digit3: () => setTab('sec'),
+    KeyN: () => click('add'),
+  };
+  if (tab === '3d') Object.assign(map, {
+    KeyI: () => click('vIso'), KeyT: () => click('vTop'), KeyV: () => click('vFront'),
+    KeyZ: () => click('tZone'), KeyX: () => click('tPlane'), KeyC: () => click('tCircles'), KeyD: () => click('tDims'), KeyM: () => click('tDrag'),
+    KeyQ: () => click('free'), KeyW: () => click('two'), KeyE: () => click('one'), KeyR: () => click('orbit'), KeyL: () => click('clearMarks'),
+    Space: () => { const id = playBtns[mode]; if (id) click(id); },
+  });
+  if (tab === 'plan') Object.assign(map, {
+    Digit0: () => click('pFit'), Numpad0: () => click('pFit'), Equal: () => click('pIn'), NumpadAdd: () => click('pIn'),
+    Minus: () => click('pOut'), NumpadSubtract: () => click('pOut'), KeyK: () => click('pCut'), KeyL: () => { marks = []; drawPlan(); },
+    Escape: () => { if (cutPick) click('pCut'); },
+  });
+  const f = map[c];
+  if (f) { e.preventDefault(); e.stopPropagation(); f(); }
+}, true);
+
+// ---------- импорт DXF: подложки планов и сечений ----------
+// Подложка хранит геометрию в координатах чертежа (после раскрытия блоков):
+// items: [слой, 0, замкнута, x1, y1, x2, y2…] полилиния, [слой, 1, cx, cy, r] окружность,
+//        [слой, 2, x, y, h, поворот, текст, выравнивание] текст, [слой, 3, x, y] точка или вставка блока.
+// План: мир = Поворот(rot) · S · p + (tx, ty). Сечение: s = ±S · px + ts, z = S · py + tz.
+const UKEY = 'sfera-podlozhki-v1';
+let underlays = [];
+try { const u = JSON.parse(localStorage.getItem(UKEY)); if (Array.isArray(u)) underlays = u; } catch (e) {}
+const UNIT_S = { mm: 0.001, cm: 0.01, m: 1 };
+const ulMsg = (t, bad) => { const m = $('ulMsg'); m.hidden = !t; m.textContent = t || ''; m.className = bad ? 'warn' : 'note'; };
+function saveUnderlays() {
+  try { localStorage.setItem(UKEY, JSON.stringify(underlays)); }
+  catch (e) { ulMsg('Подложки слишком большие для автосохранения в браузере. Сохраните проект в файл кнопкой «Сохранить проект».', true); }
+}
+
+// --- чтение DXF
+function decodeDXF(buf) {
+  const bytes = new Uint8Array(buf);
+  if (new TextDecoder('latin1').decode(bytes.slice(0, 22)).startsWith('AutoCAD Binary DXF')) throw new Error('это двоичный DXF, сохраните чертёж как DXF в текстовом формате (ASCII)');
+  const head = new TextDecoder('latin1').decode(bytes.slice(0, Math.min(bytes.length, 300000)));
+  const ver = (head.match(/\$ACADVER\s*\r?\n\s*1\s*\r?\n\s*(AC\d+)/) || [])[1] || '';
+  const cp = (head.match(/\$DWGCODEPAGE\s*\r?\n\s*3\s*\r?\n\s*(\S+)/) || [])[1] || '';
+  let enc = 'utf-8';
+  if (ver < 'AC1021') enc = /866/.test(cp) ? 'ibm866' : /125\d/.test(cp) ? 'windows-' + cp.match(/125\d/)[0] : 'windows-1251';
+  // кириллица, записанная при неверно указанной кодовой странице 1252: буквы À–ÿ встречаются массово
+  if (enc === 'windows-1252') { let n = 0; for (let i = 0; i < bytes.length && n < 30; i++) if (bytes[i] >= 0xC0) n++; if (n >= 3) enc = 'windows-1251'; }
+  return new TextDecoder(enc).decode(bytes);
+}
+const cleanText = s => s
+  .replace(/\\U\+([0-9A-Fa-f]{4})/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+  .replace(/%%[cC]/g, 'Ø').replace(/%%[dD]/g, '°').replace(/%%[pP]/g, '±').replace(/%%[uUoOkK]/g, '')
+  .replace(/\\[Pp]/g, ' ').replace(/\\~/g, ' ')
+  .replace(/\\S([^;]*?)[#^/]([^;]*);/g, '$1/$2')
+  .replace(/\\[A-Za-z][^;\\{}]*;/g, '').replace(/\\[LlOoKkNn]/g, '').replace(/[{}]/g, '')
+  .replace(/\s+/g, ' ').trim();
+function parseDXF(text) {
+  const L = text.split(/\r\n|\r|\n/), G = [];
+  for (let i = 0; i + 1 < L.length; i += 2) { const c = parseInt(L[i], 10); if (Number.isFinite(c)) G.push([c, L[i + 1]]); }
+  let sec = '', insunits = 0, cur = null, blk = null, lastVar = '';
+  const blocks = {}, ents = [];
+  for (const [c, v0] of G) {
+    const v = v0.trim();
+    if (c === 0) {
+      if (v === 'SECTION') { sec = ''; cur = null; continue; }
+      if (v === 'ENDSEC') { sec = ''; cur = null; continue; }
+      if (sec === 'BLOCKS') {
+        if (v === 'BLOCK') { blk = { name: '', bx: 0, by: 0, ents: [] }; cur = { type: '_BLOCK', g: [] }; continue; }
+        if (v === 'ENDBLK') { if (blk) { const q = cur && cur.type === '_BLOCK' ? cur : null; if (q) setBlock(blk, q); blocks[blk.name] = blk; } blk = null; cur = null; continue; }
+        if (blk) { if (cur && cur.type === '_BLOCK') setBlock(blk, cur); cur = { type: v, g: [] }; blk.ents.push(cur); }
+        continue;
+      }
+      if (sec === 'ENTITIES') { cur = { type: v, g: [] }; ents.push(cur); }
+      continue;
+    }
+    if (c === 2 && !sec && cur === null) { sec = v; continue; }
+    if (sec === 'HEADER') { if (c === 9) lastVar = v; else if (lastVar === '$INSUNITS' && c === 70) insunits = +v; continue; }
+    if (cur) cur.g.push([c, c === 1 || c === 3 ? v0 : v]);
+  }
+  function setBlock(b, q) { for (const [c, v] of q.g) { if (c === 2 && !b.name) b.name = v; if (c === 10) b.bx = +v; if (c === 20) b.by = +v; } q.type = '_DONE'; }
+  return { blocks, ents: group(ents), insunits };
+  function group(list) {
+    // вершины POLYLINE и атрибуты INSERT собираем в родительский объект
+    const out = []; let parent = null;
+    for (const e of list) {
+      if (e.type === '_DONE' || e.type === '_BLOCK') continue;
+      if (e.type === 'VERTEX' || e.type === 'ATTRIB') { if (parent) (parent.sub = parent.sub || []).push(e); continue; }
+      if (e.type === 'SEQEND') { parent = null; continue; }
+      out.push(e); parent = e.type === 'POLYLINE' || e.type === 'INSERT' ? e : null;
+    }
+    return out;
+  }
+}
+function dxfGeometry(d) {
+  for (const b of Object.values(d.blocks)) b.list = null;
+  const layers = [], li = new Map(), items = [];
+  const lay = n => { n = n || '0'; if (!li.has(n)) { li.set(n, layers.length); layers.push(n); } return li.get(n); };
+  const r3 = v => Math.round(v * 1000) / 1000;
+  const get = (e, c, def) => { const q = e.g.find(x => x[0] === c); return q ? (c === 1 || c === 2 || c === 3 || c === 7 || c === 8 ? q[1] : +q[1]) : def; };
+  const arcPts = (cx, cy, r, a0, a1, out) => { // радианы, против часовой
+    let da = a1 - a0; while (da <= 0) da += 2 * Math.PI;
+    const n = Math.max(4, Math.ceil(da / (Math.PI / 24)));
+    for (let k = 0; k <= n; k++) { const a = a0 + da * k / n; out.push(cx + r * Math.cos(a), cy + r * Math.sin(a)); }
+  };
+  const bulge = (x1, y1, x2, y2, b, out) => {
+    const th = 4 * Math.atan(b), dx = x2 - x1, dy = y2 - y1, dd = Math.hypot(dx, dy); if (dd < 1e-12) return;
+    const r = dd / (2 * Math.sin(th / 2)), h = r * Math.cos(th / 2), cx = (x1 + x2) / 2 - dy / dd * h, cy = (y1 + y2) / 2 + dx / dd * h;
+    const a1 = Math.atan2(y1 - cy, x1 - cx), n = Math.max(2, Math.ceil(Math.abs(th) / (Math.PI / 24)));
+    for (let k = 1; k < n; k++) { const a = a1 + th * k / n; out.push(cx + Math.abs(r) * Math.cos(a), cy + Math.abs(r) * Math.sin(a)); }
+  };
+  // M: [a, b, c, d, e, f] — x' = a x + c y + e, y' = b x + d y + f
+  const ap = (M, x, y) => [M[0] * x + M[2] * y + M[4], M[1] * x + M[3] * y + M[5]];
+  const mul = (A, B) => [A[0] * B[0] + A[2] * B[1], A[1] * B[0] + A[3] * B[1], A[0] * B[2] + A[2] * B[3], A[1] * B[2] + A[3] * B[3], A[0] * B[4] + A[2] * B[5] + A[4], A[1] * B[4] + A[3] * B[5] + A[5]];
+  const sc = M => Math.sqrt(Math.abs(M[0] * M[3] - M[1] * M[2]));
+  const ang = M => Math.atan2(M[1], M[0]) * 180 / Math.PI;
+  const poly = (l, M, pts, closed) => { if (pts.length < 4) return; const it = [l, 0, closed ? 1 : 0]; for (let i = 0; i < pts.length; i += 2) { const [x, y] = ap(M, pts[i], pts[i + 1]); it.push(r3(x), r3(y)); } items.push(it); };
+  const text = (l, M, x, y, h, rot, s, al) => { s = cleanText(s || ''); if (!s) return; const [X, Y] = ap(M, x, y); items.push([l, 2, r3(X), r3(Y), r3(h * sc(M)), r3((rot || 0) + ang(M)), s, al || 0]); };
+  let count = 0;
+  function walk(list, M, inherit, depth) {
+    for (const e of list) {
+      if (++count > 400000) return;
+      let ln = get(e, 8, '0'); if (ln === '0' && inherit) ln = inherit;
+      const l = lay(ln), t = e.type;
+      if (t === 'LINE') poly(l, M, [get(e, 10, 0), get(e, 20, 0), get(e, 11, 0), get(e, 21, 0)], false);
+      else if (t === 'LWPOLYLINE') {
+        const vs = []; let v = null;
+        for (const [c, val] of e.g) { if (c === 10) { v = [+val, 0, 0]; vs.push(v); } else if (c === 20 && v) v[1] = +val; else if (c === 42 && v) v[2] = +val; }
+        const closed = (get(e, 70, 0) & 1) === 1, pts = [];
+        vs.forEach((p, i) => { pts.push(p[0], p[1]); const q = vs[i + 1] || (closed ? vs[0] : null); if (q && p[2]) bulge(p[0], p[1], q[0], q[1], p[2], pts); });
+        poly(l, M, pts, closed);
+      } else if (t === 'POLYLINE') {
+        const fl = get(e, 70, 0); if (fl & 80) continue;
+        const vs = (e.sub || []).filter(s => s.type === 'VERTEX').map(s => [get(s, 10, 0), get(s, 20, 0), get(s, 42, 0)]);
+        const closed = (fl & 1) === 1, pts = [];
+        vs.forEach((p, i) => { pts.push(p[0], p[1]); const q = vs[i + 1] || (closed ? vs[0] : null); if (q && p[2]) bulge(p[0], p[1], q[0], q[1], p[2], pts); });
+        poly(l, M, pts, closed);
+      } else if (t === 'CIRCLE') {
+        const cx = get(e, 10, 0), cy = get(e, 20, 0), r = get(e, 40, 0);
+        if (Math.abs(M[0] - M[3]) < 1e-9 && Math.abs(M[1] + M[2]) < 1e-9) { const [X, Y] = ap(M, cx, cy); items.push([l, 1, r3(X), r3(Y), r3(r * sc(M))]); }
+        else { const pts = []; arcPts(cx, cy, r, 0, 2 * Math.PI, pts); poly(l, M, pts, true); }
+      } else if (t === 'ARC') { const pts = []; arcPts(get(e, 10, 0), get(e, 20, 0), get(e, 40, 0), get(e, 50, 0) * Math.PI / 180, get(e, 51, 360) * Math.PI / 180, pts); poly(l, M, pts, false); }
+      else if (t === 'ELLIPSE') {
+        const cx = get(e, 10, 0), cy = get(e, 20, 0), mx = get(e, 11, 1), my = get(e, 21, 0), k = get(e, 40, 1);
+        let a0 = get(e, 41, 0), a1 = get(e, 42, 2 * Math.PI); if (a1 <= a0) a1 += 2 * Math.PI;
+        const n = Math.max(8, Math.ceil((a1 - a0) / (Math.PI / 24))), pts = [];
+        for (let i = 0; i <= n; i++) { const a = a0 + (a1 - a0) * i / n, c = Math.cos(a), s = Math.sin(a); pts.push(cx + mx * c - my * k * s, cy + my * c + mx * k * s); }
+        poly(l, M, pts, a1 - a0 > 2 * Math.PI - 1e-6);
+      } else if (t === 'SPLINE') {
+        const fit = [], ctl = [];
+        for (const [c, val] of e.g) { if (c === 11) fit.push(+val, 0); else if (c === 21) fit[fit.length - 1] = +val; else if (c === 10) ctl.push(+val, 0); else if (c === 20) ctl[ctl.length - 1] = +val; }
+        poly(l, M, fit.length >= 4 ? fit : ctl, (get(e, 70, 0) & 1) === 1);
+      } else if (t === 'SOLID' || t === 'TRACE' || t === '3DFACE') {
+        poly(l, M, [get(e, 10, 0), get(e, 20, 0), get(e, 11, 0), get(e, 21, 0), get(e, 13, 0), get(e, 23, 0), get(e, 12, 0), get(e, 22, 0)], true);
+      } else if (t === 'LEADER') {
+        const pts = []; for (const [c, val] of e.g) { if (c === 10) pts.push(+val, 0); else if (c === 20) pts[pts.length - 1] = +val; }
+        poly(l, M, pts, false);
+      } else if (t === 'POINT') { const [X, Y] = ap(M, get(e, 10, 0), get(e, 20, 0)); items.push([l, 3, r3(X), r3(Y)]); }
+      else if (t === 'TEXT' || t === 'ATTRIB') {
+        if (t === 'ATTRIB' && (get(e, 70, 0) & 1)) continue;
+        const h72 = get(e, 72, 0), v73 = get(e, t === 'TEXT' ? 73 : 74, 0), useAl = h72 || v73;
+        text(l, M, useAl ? get(e, 11, 0) : get(e, 10, 0), useAl ? get(e, 21, 0) : get(e, 20, 0), get(e, 40, 1), get(e, 50, 0), get(e, 1, ''), h72 === 1 || h72 === 4 ? 1 : h72 === 2 ? 2 : 0);
+      } else if (t === 'MTEXT') {
+        const s = e.g.filter(q => q[0] === 3).map(q => q[1]).join('') + get(e, 1, '');
+        let rot = get(e, 50, NaN); if (!Number.isFinite(rot)) { const dx = get(e, 11, 1), dy = get(e, 21, 0); rot = Math.atan2(dy, dx) * 180 / Math.PI; }
+        const at = get(e, 71, 1), al = [2, 5, 8].includes(at) ? 1 : [3, 6, 9].includes(at) ? 2 : 0;
+        text(l, M, get(e, 10, 0), get(e, 20, 0), get(e, 40, 1), rot, s, al);
+      } else if (t === 'INSERT' || t === 'DIMENSION') {
+        const b = d.blocks[get(e, 2, '')];
+        if (t === 'INSERT') { const [X, Y] = ap(M, get(e, 10, 0), get(e, 20, 0)); items.push([l, 3, r3(X), r3(Y)]); }
+        if (b && depth < 8) {
+          if (t === 'DIMENSION') walk(b.ents.filter(q => q.type !== '_DONE'), M, ln, depth + 1);
+          else {
+            const sx = get(e, 41, 1), sy = get(e, 42, sx === 1 ? 1 : sx), a = get(e, 50, 0) * Math.PI / 180, c = Math.cos(a), s = Math.sin(a);
+            const nc = Math.max(1, get(e, 70, 1)), nr = Math.max(1, get(e, 71, 1)), dc = get(e, 44, 0), dr = get(e, 45, 0);
+            for (let i = 0; i < nc; i++) for (let j = 0; j < nr; j++) {
+              const ox = get(e, 10, 0) + (i * dc) * c - (j * dr) * s, oy = get(e, 20, 0) + (i * dc) * s + (j * dr) * c;
+              const T = mul(M, mul([c, s, -s, c, ox, oy], [sx, 0, 0, sy, -b.bx * sx, -b.by * sy]));
+              walk(b.ents.filter(q => q.type !== '_DONE'), T, ln, depth + 1);
+            }
+          }
+        }
+        for (const a of e.sub || []) if (a.type === 'ATTRIB') walk([a], M, ln, depth + 1);
+      }
+    }
+  }
+  for (const b of Object.values(d.blocks)) b.ents = groupSub(b.ents);
+  walk(d.ents, [1, 0, 0, 1, 0, 0], null, 0);
+  return { layers, items, truncated: count > 400000, unit: ({ 4: 'mm', 5: 'cm', 6: 'm' })[d.insunits] || 'mm' };
+  function groupSub(list) { const out = []; let parent = null; for (const e of list) { if (e.type === 'VERTEX' || e.type === 'ATTRIB') { if (parent) (parent.sub = parent.sub || []).push(e); continue; } if (e.type === 'SEQEND') { parent = null; continue; } out.push(e); parent = e.type === 'POLYLINE' || e.type === 'INSERT' ? e : null; } return out; }
+}
+function bboxOf(items) {
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  const add = (x, y) => { if (x < x0) x0 = x; if (x > x1) x1 = x; if (y < y0) y0 = y; if (y > y1) y1 = y; };
+  for (const it of items) {
+    if (it[1] === 0) for (let i = 3; i < it.length; i += 2) add(it[i], it[i + 1]);
+    else if (it[1] === 1) { add(it[2] - it[4], it[3] - it[4]); add(it[2] + it[4], it[3] + it[4]); }
+    else add(it[2], it[3]);
+  }
+  return Number.isFinite(x0) ? [x0, y0, x1, y1] : [0, 0, 0, 0];
+}
+
+// --- преобразования подложки
+const uS = u => UNIT_S[u.unit] || 0.001;
+function planXf(u) { const S = uS(u), c = Math.cos(u.rot * Math.PI / 180), s = Math.sin(u.rot * Math.PI / 180); return (x, y) => [u.tx + S * (x * c - y * s), u.ty + S * (x * s + y * c)]; }
+function secXf(u) { const S = uS(u), f = u.flip ? -1 : 1; return (x, y) => [f * S * x + u.ts, S * y + u.tz]; }
+const visItems = u => u.items.filter(it => u.vis[it[0]] !== false);
+// путь svg по видимым слоям в координатах чертежа (кешируется)
+const pathCache = new Map();
+function ulPaths(u) {
+  const key = u.id + ':' + u.vis.map(v => v === false ? 0 : 1).join('');
+  if (pathCache.has(key)) return pathCache.get(key);
+  let d = ''; const texts = [];
+  for (const it of visItems(u)) {
+    if (it[1] === 0) { d += 'M' + it[3] + ' ' + it[4]; for (let i = 5; i < it.length; i += 2) d += 'L' + it[i] + ' ' + it[i + 1]; if (it[2]) d += 'Z'; }
+    else if (it[1] === 1) d += `M${it[2] + it[4]} ${it[3]}A${it[4]} ${it[4]} 0 1 0 ${it[2] - it[4]} ${it[3]}A${it[4]} ${it[4]} 0 1 0 ${it[2] + it[4]} ${it[3]}`;
+    else if (it[1] === 2) texts.push(it);
+  }
+  const r = { d, texts }; pathCache.set(key, r); return r;
+}
+function ulTextsSvg(texts, fx) {
+  return texts.map(t => `<text transform="translate(${t[2]} ${t[3]}) scale(${fx} -1) rotate(${-t[5] * fx})" font-size="${t[4]}" text-anchor="${['start', 'middle', 'end'][t[7] || 0]}">${esc(t[6])}</text>`).join('');
+}
+// вызывается из renderPlan (g — группа в мировых координатах с осью y вниз)
+function drawUnderlaysPlan(g, k) {
+  for (const u of underlays) {
+    if (u.kind !== 'plan' || !u.show) continue;
+    const S = uS(u), { d, texts } = ulPaths(u);
+    const grp = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+    grp.setAttribute('class', 'ulg'); grp.setAttribute('opacity', u.opacity);
+    grp.setAttribute('transform', `translate(${u.tx} ${-u.ty}) rotate(${-u.rot}) scale(${S} ${-S})`);
+    grp.innerHTML = `<path class="ul" d="${d}"/>` + (k * S * 0.5 > 0.02 ? ulTextsSvg(texts.filter(t => t[4] * S * k > 3), 1) : '');
+    g.appendChild(grp);
+  }
+}
+function underlayBounds() {
+  let b = null;
+  for (const u of underlays) {
+    if (u.kind !== 'plan' || !u.show) continue;
+    const f = planXf(u), [x0, y0, x1, y1] = u.bbox;
+    for (const [x, y] of [[x0, y0], [x1, y0], [x1, y1], [x0, y1]]) { const [X, Y] = f(x, y); b = b ? [Math.min(b[0], X), Math.min(b[1], Y), Math.max(b[2], X), Math.max(b[3], Y)] : [X, Y, X, Y]; }
+  }
+  return b;
+}
+// сечения: подложки, привязанные к разрезу key, в пикселях svg разреза
+function sectionUnderlays(key) { return underlays.filter(u => u.kind === 'section' && u.show && u.target === key); }
+function sectionUnderlayZmax(key) {
+  let z = -Infinity;
+  for (const u of sectionUnderlays(key)) z = Math.max(z, uS(u) * u.bbox[3] + u.tz);
+  return z;
+}
+function sectionUnderlaySvg(key, X0, k, top) {
+  return sectionUnderlays(key).map(u => {
+    const S = uS(u), f = u.flip ? -1 : 1, { d, texts } = ulPaths(u);
+    const e = X0 + u.ts * k, ff = (top - u.tz) * k;
+    return `<g class="ulg" opacity="${u.opacity}" transform="matrix(${f * S * k} 0 0 ${-S * k} ${e} ${ff})"><path class="ul" d="${d}"/>${ulTextsSvg(texts.filter(t => t[4] * S * k > 3), f)}</g>`;
+  }).join('');
+}
+
+// --- 3D: линии подложек на земле
+const ulGroup = new THREE.Group(); scene.add(ulGroup);
+function buildUnderlays3D() {
+  while (ulGroup.children.length) { const o = ulGroup.children.pop(); o.geometry.dispose(); o.material.dispose(); }
+  for (const u of underlays) {
+    if (u.kind !== 'plan' || !u.show) continue;
+    const f = planXf(u), pos = [];
+    const seg = (a, b) => pos.push(a[0], a[1], 0.03, b[0], b[1], 0.03);
+    for (const it of visItems(u)) {
+      if (it[1] === 0) { let p = f(it[3], it[4]); const p0 = p; for (let i = 5; i < it.length; i += 2) { const q = f(it[i], it[i + 1]); seg(p, q); p = q; } if (it[2]) seg(p, p0); }
+      else if (it[1] === 1) { let p = f(it[2] + it[4], it[3]); for (let n = 1; n <= 36; n++) { const a = n * Math.PI / 18, q = f(it[2] + it[4] * Math.cos(a), it[3] + it[4] * Math.sin(a)); seg(p, q); p = q; } }
+    }
+    if (!pos.length) continue;
+    const geo = new THREE.BufferGeometry(); geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    ulGroup.add(new THREE.LineSegments(geo, new THREE.LineBasicMaterial({ color: col('--muted'), transparent: true, opacity: Math.min(1, u.opacity + 0.15) })));
+  }
+}
+new MutationObserver(buildUnderlays3D).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change', buildUnderlays3D);
+
+function ulChanged() { saveUnderlays(); drawPlan(); drawSections(); buildUnderlays3D(); }
+
+// --- загрузка файла
+let ulKind = 'plan';
+$('ulAddPlan').onclick = () => { ulKind = 'plan'; $('ulFile').value = ''; $('ulFile').click(); };
+$('ulAddSec').onclick = () => { ulKind = 'section'; $('ulFile').value = ''; $('ulFile').click(); };
+$('ulFile').addEventListener('change', async () => {
+  const f = $('ulFile').files[0]; if (!f) return;
+  if (/\.dwg$/i.test(f.name)) { ulMsg('DWG браузер не читает. В AutoCAD: «Сохранить как» → DXF, затем загрузите DXF.', true); return; }
+  ulMsg('Читаю ' + f.name + '…');
+  await new Promise(r => setTimeout(r, 20));
+  try {
+    const geo = dxfGeometry(parseDXF(decodeDXF(await f.arrayBuffer())));
+    if (!geo.items.length) throw new Error('в файле нет поддерживаемых объектов');
+    const u = { id: Date.now().toString(36), name: f.name.replace(/\.dxf$/i, ''), kind: ulKind, unit: geo.unit, show: true, opacity: 0.8,
+      layers: geo.layers, vis: geo.layers.map(() => true), items: geo.items, bbox: bboxOf(geo.items), tx: 0, ty: 0, rot: 0, ts: 0, tz: 0, flip: false, target: '' };
+    if (u.kind === 'section') {
+      const keys = secKeys(); u.target = keys.length ? keys[0].key : '';
+      u.ts = -uS(u) * u.bbox[0]; u.tz = -uS(u) * u.bbox[1];
+    }
+    underlays.push(u);
+    renderUnderlays(); ulChanged();
+    if (u.kind === 'plan') { setTab('plan'); fitAll(); drawPlan(); }
+    else setTab('sec');
+    const nT = geo.items.filter(i => i[1] === 2).length;
+    ulMsg(`Загружено: ${f.name}, объектов ${geo.items.length}, из них текстов ${nT}, слоёв ${geo.layers.length}.` + (geo.truncated ? ' Чертёж очень большой, прочитана только часть.' : '')
+      + (u.kind === 'plan' ? ' Чтобы перенести молниеприёмники и оборудование, нажмите «Распознать М и E».' : ''));
+  } catch (e) { console.error(e); ulMsg('Не удалось прочитать ' + f.name + ': ' + e.message, true); }
+});
+// вписать план вместе с подложками
+function fitAll() {
+  const { w, h } = psize(); if (w < 10) return;
+  let b = underlayBounds();
+  if (last) { const F = last.F, a = [F.x0, F.y0, F.x0 + F.nx * F.step, F.y0 + F.ny * F.step]; b = b ? [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])] : a; }
+  if (!b) return;
+  const sx = Math.max(1, b[2] - b[0]), sy = Math.max(1, b[3] - b[1]);
+  pv = { cx: (b[0] + b[2]) / 2, cy: (b[1] + b[3]) / 2, k: Math.max(0.02, Math.min(w / (sx + 16), (Math.max(h, 300) - 150) / (sy + 16))) };
+}
+function secKeys() {
+  if (!last) return [];
+  const rods = last.rods;
+  return last.pairs.map(p => ({ key: 'p:' + p.name, label: `${p.name} (${rods[p.i].name}–${rods[p.j].name})` }))
+    .concat((state.cuts || []).map((c, n) => ({ key: 'c:' + n, label: `${n + 1}-${n + 1}` })));
+}
+
+// --- карточки подложек
+function renderUnderlays() {
+  const box = $('ulList'); box.innerHTML = '';
+  underlays.forEach((u, i) => {
+    const d = document.createElement('div'); d.className = 'eq';
+    const plan = u.kind === 'plan', nT = u.items.filter(t => t[1] === 2).length;
+    d.innerHTML = `<div class="top"><input type="text" class="un" aria-label="Название подложки">
+        <label class="chk" title="Показывать"><input type="checkbox" class="ushow"> видно</label>
+        <button class="x" type="button" title="Удалить подложку" aria-label="Удалить подложку">×</button></div>
+      <div class="note" style="margin:0">${plan ? 'План' : 'Сечение'} · объектов ${u.items.length}, текстов ${nT}, слоёв ${u.layers.length}</div>
+      <div class="grid6">
+        <label>Единицы DXF<select class="uunit"><option value="mm">мм</option><option value="cm">см</option><option value="m">м</option></select></label>
+        <label>Прозрачность<input type="range" class="uop" min="0.1" max="1" step="0.05"></label>
+        ${plan ? `<label>Поворот, °<input type="number" class="urot" step="any"></label>
+        <label>Сдвиг X, <span class="u">${UL()}</span><input type="number" class="utx len" step="any"></label>
+        <label>Сдвиг Y, <span class="u">${UL()}</span><input type="number" class="uty len" step="any"></label>`
+        : `<label>Разрез<select class="utarget">${secKeys().map(s => `<option value="${esc(s.key)}">${esc(s.label)}</option>`).join('')}<option value="">— не показывать —</option></select></label>
+        <label>Сдвиг по разрезу, <span class="u">${UL()}</span><input type="number" class="uts len" step="any"></label>
+        <label>Сдвиг по высоте, <span class="u">${UL()}</span><input type="number" class="utz len" step="any"></label>
+        <label class="chk" style="flex-direction:row;align-items:center"><input type="checkbox" class="uflip"> зеркально</label>`}
+      </div>
+      <details><summary>Слои (${u.layers.length})</summary><div class="ulayers">${u.layers.map((n, j) => `<label class="chk"><input type="checkbox" data-l="${j}"${u.vis[j] !== false ? ' checked' : ''}> ${esc(n)}</label>`).join('')}</div>
+        <div class="row"><button class="ghost" type="button" data-all="1">Все</button><button class="ghost" type="button" data-all="0">Ни одного</button></div></details>
+      <div class="row" style="margin-top:4px">
+        ${plan ? `<button class="ghost ualign" type="button">Совместить по точкам</button><button class="ghost urecog" type="button">Распознать М и E</button>`
+        : `<button class="ghost ualign" type="button">Привязать на разрезе</button>`}
+      </div>`;
+    box.appendChild(d);
+    const q = s => d.querySelector(s);
+    q('.un').value = u.name; q('.un').oninput = e => { u.name = e.target.value; saveUnderlays(); };
+    q('.ushow').checked = u.show; q('.ushow').onchange = e => { u.show = e.target.checked; ulChanged(); };
+    q('button.x').onclick = () => { if (!confirm(`Удалить подложку «${u.name}»?`)) return; underlays.splice(i, 1); renderUnderlays(); ulChanged(); };
+    q('.uunit').value = u.unit; q('.uunit').onchange = e => { u.unit = e.target.value; ulChanged(); };
+    q('.uop').value = u.opacity; q('.uop').oninput = e => { u.opacity = +e.target.value; ulChanged(); };
+    const num = (cls, key) => { const el = q(cls); if (!el) return; el.value = toIn(u[key]); el.oninput = () => { const v = fromIn(el.value); if (Number.isFinite(v)) { u[key] = v; ulChanged(); } }; };
+    num('.utx', 'tx'); num('.uty', 'ty'); num('.uts', 'ts'); num('.utz', 'tz');
+    if (q('.urot')) { q('.urot').value = u.rot; q('.urot').oninput = e => { const v = parseFloat(e.target.value); if (Number.isFinite(v)) { u.rot = v; ulChanged(); } }; }
+    if (q('.uflip')) { q('.uflip').checked = !!u.flip; q('.uflip').onchange = e => { u.flip = e.target.checked; ulChanged(); }; }
+    if (q('.utarget')) { q('.utarget').value = u.target; q('.utarget').onchange = e => { u.target = e.target.value; ulChanged(); }; }
+    d.querySelectorAll('[data-l]').forEach(cb => cb.onchange = () => { u.vis[+cb.dataset.l] = cb.checked; ulChanged(); });
+    d.querySelectorAll('[data-all]').forEach(b => b.onclick = () => { u.vis = u.layers.map(() => b.dataset.all === '1'); renderUnderlays(); ulChanged(); d.querySelector('details') && (box.children[i].querySelector('details').open = true); });
+    q('.ualign').onclick = () => plan ? startAlign(u) : startSecAlign(u);
+    if (q('.urecog')) q('.urecog').onclick = () => recognize(u);
+  });
+  if (!underlays.length) box.innerHTML = '<p class="note" style="margin:0">Подложек нет.</p>';
+}
+const _renderInputs2 = renderInputs;
+renderInputs = function () { _renderInputs2(); renderUnderlays(); };
+
+// --- совмещение плана по точкам
+let alignPick = null; // { u, pts: [[x, y]...] } — источник, цель, источник, цель
+function startAlign(u) {
+  setTab('plan'); alignPick = { u, pts: [] }; cutPick = null;
+  $('roT').textContent = `Совмещение «${u.name}»: кликните точку на подложке`;
+  $('ro').innerHTML = 'Точка притягивается к ближайшей вершине или центру окружности. Esc — отмена';
+}
+function snapPlan(p, pool) {
+  let best = null, bd = 12 / pv.k;
+  const test = (x, y) => { const d = Math.hypot(x - p[0], y - p[1]); if (d < bd) { bd = d; best = [x, y]; } };
+  for (const s of pool) {
+    if (s.rods) { for (const r of validRods()) test(r.x, r.y); for (const e of state.equip || []) test(e.x, e.y); continue; }
+    const u = s.u, f = planXf(u);
+    for (const it of visItems(u)) {
+      if (it[1] === 0) for (let i = 3; i < it.length; i += 2) { const [x, y] = f(it[i], it[i + 1]); test(x, y); }
+      else { const [x, y] = f(it[2], it[3]); test(x, y); }
+    }
+  }
+  return best || p;
+}
+function alignClick(w) {
+  const a = alignPick, u = a.u, src = a.pts.length % 2 === 0;
+  const others = underlays.filter(o => o !== u && o.kind === 'plan' && o.show).map(o => ({ u: o }));
+  const p = src ? snapPlan(w, [{ u }]) : snapPlan(w, [{ rods: 1 }, ...others]);
+  a.pts.push(p);
+  const n = a.pts.length;
+  if (n === 2) { u.tx += p[0] - a.pts[0][0]; u.ty += p[1] - a.pts[0][1]; ulChanged(); renderUnderlays();
+    $('roT').textContent = 'Сдвиг выполнен. Для поворота кликните вторую точку подложки, Esc — закончить'; }
+  else if (n === 4) {
+    const t1 = a.pts[1], s2 = a.pts[2], t2 = a.pts[3];
+    const dA = Math.atan2(t2[1] - t1[1], t2[0] - t1[0]) - Math.atan2(s2[1] - t1[1], s2[0] - t1[0]);
+    const c = Math.cos(dA), s = Math.sin(dA), dx = u.tx - t1[0], dy = u.ty - t1[1];
+    u.rot = Math.round((u.rot + dA * 180 / Math.PI) * 1e4) / 1e4; u.tx = t1[0] + dx * c - dy * s; u.ty = t1[1] + dx * s + dy * c;
+    alignPick = null; ulChanged(); renderUnderlays(); $('roT').textContent = 'Подложка совмещена по двум точкам';
+  } else $('roT').textContent = n === 1 ? 'Теперь кликните, куда поставить эту точку (стержень, центр оборудования или точка другой подложки)' : 'Кликните, куда поставить вторую точку';
+  drawPlan();
+}
+function drawAlignMarks(svg, T) {
+  if (!alignPick) return;
+  alignPick.pts.forEach((p, i) => { const [x, y] = T(p[0], p[1]); const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+    c.setAttribute('cx', x); c.setAttribute('cy', y); c.setAttribute('r', 6); c.setAttribute('fill', 'none'); c.setAttribute('stroke', css(i % 2 ? '--ok' : '--contact')); c.setAttribute('stroke-width', 2); svg.appendChild(c); });
+}
+
+// --- привязка сечения на разрезе
+let secPick = null; // { u, pts: [[s, z], [s, z]] }
+function startSecAlign(u) {
+  if (!u.target) { ulMsg('Сначала выберите разрез для этого сечения.', true); return; }
+  setTab('sec'); secPick = { u, pts: [] };
+  ulMsg(`Привязка «${u.name}»: кликните точку на сечении (например, низ стержня), затем место на разрезе. Esc — отмена.`);
+  setTimeout(() => { const s = sectionsBox.querySelector(`svg[data-key="${CSS.escape(u.target)}"]`); if (s) s.scrollIntoView({ block: 'center' }); }, 50);
+}
+sectionsBox.addEventListener('click', e => {
+  if (!secPick) return;
+  const svg = e.target.closest('svg[data-key]'); if (!svg || svg.dataset.key !== secPick.u.target) return;
+  const r = svg.getBoundingClientRect(), k = +svg.dataset.k, s0 = +svg.dataset.s0, top = +svg.dataset.top;
+  const s = (e.clientX - r.left - 30) / k + s0, z = top - (e.clientY - r.top) / k, tol = 10 / k, u = secPick.u;
+  let best = null, bd = tol;
+  const test = (a, b) => { const d = Math.hypot(a - s, b - z); if (d < bd) { bd = d; best = [a, b]; } };
+  if (secPick.pts.length === 0) {
+    const f = secXf(u);
+    for (const it of visItems(u)) { if (it[1] === 0) for (let i = 3; i < it.length; i += 2) test(...f(it[i], it[i + 1])); else test(...f(it[2], it[3])); }
+  } else {
+    const d = JSON.parse(svg.dataset.snap || '[]'); for (const [a, b] of d) test(a, b);
+    if (!best && Math.abs(z) < tol) best = [s, 0];
+  }
+  secPick.pts.push(best || [s, z]);
+  if (secPick.pts.length === 2) {
+    const [a, b] = secPick.pts; u.ts += b[0] - a[0]; u.tz += b[1] - a[1]; secPick = null;
+    ulChanged(); renderUnderlays(); ulMsg(`Сечение «${u.name}» привязано.`);
+  } else ulMsg('Теперь кликните место на разрезе: низ или верх стержня, земля, угол оборудования.');
+});
+window.addEventListener('keydown', e => {
+  if (e.key !== 'Escape' || !(alignPick || secPick)) return;
+  e.preventDefault(); e.stopPropagation();
+  if (alignPick) { alignPick = null; $('roT').textContent = 'Совмещение закончено'; drawPlan(); }
+  if (secPick) { secPick = null; ulMsg('Привязка отменена.'); }
+}, true);
+
+// --- распознавание молниеприёмников и оборудования по подписям
+// буква сразу перед номером: «М1», «E2»; «М 1:500» не подходит
+const ROD_RE = /^[МMмm](\d+)(?![\d.,:/])\s*(.*)$/, EQ_RE = /^[EЕeе](\d+)(?![\d.,:/])\s*(.*)$/;
+function parseLabel(s, S) {
+  let h = null; const m = s.match(/(?:^|\s)[HНhн]\s*=?\s*(\d+(?:[.,]\d+)?)/);
+  if (m) { h = parseFloat(m[1].replace(',', '.')) * S; s = (s.slice(0, m.index) + ' ' + s.slice(m.index + m[0].length)); }
+  return { h, rest: s.replace(/\s+/g, ' ').trim() };
+}
+function inPoly(x, y, P) { let c = false; for (let i = 0, j = P.length - 1; i < P.length; j = i++) { const [xi, yi] = P[i], [xj, yj] = P[j]; if ((yi > y) !== (yj > y) && x < (xj - xi) * (y - yi) / (yj - yi) + xi) c = !c; } return c; }
+function minRect(P) {
+  let best = null;
+  for (let i = 0; i < P.length; i++) {
+    const [x1, y1] = P[i], [x2, y2] = P[(i + 1) % P.length], a = Math.atan2(y2 - y1, x2 - x1), c = Math.cos(a), s = Math.sin(a);
+    let u0 = Infinity, u1 = -Infinity, v0 = Infinity, v1 = -Infinity;
+    for (const [x, y] of P) { const u = x * c + y * s, v = -x * s + y * c; u0 = Math.min(u0, u); u1 = Math.max(u1, u); v0 = Math.min(v0, v); v1 = Math.max(v1, v); }
+    const A = (u1 - u0) * (v1 - v0);
+    if (!best || A < best.A - 1e-9) { const uc = (u0 + u1) / 2, vc = (v0 + v1) / 2; best = { A, x: uc * c - vc * s, y: uc * s + vc * c, l: u1 - u0, w: v1 - v0, rot: a * 180 / Math.PI }; }
+  }
+  if (best.l < best.w) { [best.l, best.w] = [best.w, best.l]; best.rot += 90; }
+  best.rot = ((best.rot % 180) + 180) % 180; if (best.rot > 90) best.rot -= 180;
+  return best;
+}
+function recognize(u) {
+  const f = planXf(u), S = uS(u), found = [];
+  const circles = [], points = [], polys = [];
+  for (const it of u.items) {
+    if (it[1] === 1) { const [x, y] = f(it[2], it[3]); circles.push({ x, y, r: it[4] * S }); }
+    else if (it[1] === 3) { const [x, y] = f(it[2], it[3]); points.push({ x, y }); }
+    else if (it[1] === 0 && it[2]) { const P = []; for (let i = 3; i < it.length; i += 2) P.push(f(it[i], it[i + 1])); if (P.length >= 3) polys.push({ P, A: Math.abs(polyArea(P)) }); }
+  }
+  for (const it of u.items) {
+    if (it[1] !== 2) continue;
+    const s = it[6].trim(), [tx, ty] = f(it[2], it[3]);
+    let m = s.match(ROD_RE);
+    if (m) {
+      const { h, rest } = parseLabel(m[2], S); let best = null, bd = 2, src = 'точка текста';
+      for (const c of circles) { if (c.r > 2.5) continue; const d = Math.hypot(c.x - tx, c.y - ty); if (d < bd) { bd = d; best = c; src = 'окружность'; } }
+      for (const p of points) { const d = Math.hypot(p.x - tx, p.y - ty); if (d < bd) { bd = d; best = p; src = 'блок или точка'; } }
+      found.push({ type: 'rod', name: 'М' + m[1], x: best ? best.x : tx, y: best ? best.y : ty, h, src, note: rest && !/^[\s,;:.-]*$/.test(rest) ? rest : '' });
+      continue;
+    }
+    m = s.match(EQ_RE);
+    if (m) {
+      const { h, rest } = parseLabel(m[2], S), tag = 'E' + m[1];
+      let pg = null; for (const p of polys) if ((!pg || p.A < pg.A) && inPoly(tx, ty, p.P)) pg = p;
+      let ci = null; for (const c of circles) if ((!ci || c.r < ci.r) && Math.hypot(c.x - tx, c.y - ty) <= c.r) ci = c;
+      const useC = ci && (!pg || Math.PI * ci.r * ci.r < pg.A);
+      const base = { type: 'eq', tag, name: rest ? `${tag} ${rest}` : tag, h };
+      if (useC) found.push(Object.assign(base, { shape: 'cyl', x: ci.x, y: ci.y, l: 2 * ci.r, w: 2 * ci.r, rot: 0, src: 'окружность' }));
+      else if (pg) { const b = minRect(pg.P); found.push(Object.assign(base, { shape: 'box', x: b.x, y: b.y, l: b.l, w: b.w, rot: Math.round(b.rot * 100) / 100, src: 'контур' })); }
+      else found.push(Object.assign(base, { shape: null, x: tx, y: ty, src: 'контур не найден' }));
+    }
+  }
+  showRecognized(u, found);
+}
+function showRecognized(u, found) {
+  const dlg = $('recDlg'), body = $('recBody');
+  const names = {}; for (const q of found) { const k = q.type + (q.type === 'rod' ? q.name : q.tag); names[k] = (names[k] || 0) + 1; }
+  const nr = found.filter(q => q.type === 'rod').length, ne = found.length - nr;
+  $('recInfo').textContent = found.length ? `Найдено молниеприёмников: ${nr}, оборудования: ${ne}. Отметьте, что перенести в проект.` : 'Подписей вида «М1» или «E1» на этой подложке не найдено. Проверьте, что подписи сделаны текстом (TEXT или MTEXT) и слой не выключен.';
+  body.innerHTML = found.map((q, i) => {
+    const dup = names[q.type + (q.type === 'rod' ? q.name : q.tag)] > 1, bad = q.type === 'eq' && !q.shape;
+    const what = q.type === 'rod' ? 'стержень' : q.shape === 'cyl' ? 'цилиндр' : q.shape === 'box' ? 'блок' : 'оборудование';
+    const size = q.type === 'eq' && q.shape ? (q.shape === 'cyl' ? `Ø${fL(q.l)}` : `${fL(q.l)}×${fL(q.w)}`) : '';
+    const notes = [q.src, dup ? 'повтор имени' : '', q.note ? 'подпись: ' + q.note : ''].filter(Boolean).join(', ');
+    return `<tr${bad || dup ? ' class="recwarn"' : ''}><td><input type="checkbox" data-i="${i}"${bad ? ' disabled' : ' checked'}></td><td>${what}</td><td>${esc(q.type === 'rod' ? q.name : q.name)}</td>
+      <td class="n">${fL(q.x)}</td><td class="n">${fL(q.y)}</td><td class="n">${size}</td><td class="n">${q.h ? fL(q.h) : '<span class="muted">по умолч.</span>'}</td><td class="note" style="margin:0">${esc(notes)}</td></tr>`;
+  }).join('');
+  $('recRodH').value = toIn(13.5); $('recEqH').value = toIn(3);
+  dlg.hidden = false;
+  $('recApply').onclick = () => {
+    const rodH = fromIn($('recRodH').value), eqH = fromIn($('recEqH').value), replace = $('recReplace').checked;
+    const take = [...body.querySelectorAll('input[data-i]:checked')].map(cb => found[+cb.dataset.i]);
+    const rods = take.filter(q => q.type === 'rod'), eqs = take.filter(q => q.type === 'eq' && q.shape);
+    if (rods.length && replace) state.rods = [];
+    for (const q of rods) {
+      const h = q.h || rodH; if (!(h > 0)) continue;
+      const r = { name: q.name, x: r2(q.x), y: r2(q.y), h: r2(h) }, old = state.rods.find(o => o.name === q.name);
+      if (old) Object.assign(old, r); else state.rods.push(r);
+    }
+    if (eqs.length && replace) state.equip = [];
+    // примеры из стартового проекта при импорте с чертежа не нужны
+    if (rods.length || eqs.length) state.equip = state.equip.filter(e => !/\(пример\)$/.test(e.name));
+    for (const q of eqs) {
+      const h = q.h || eqH; if (!(h > 0)) continue;
+      const e = { name: q.name, tag: q.tag, shape: q.shape, x: r2(q.x), y: r2(q.y), l: r2(q.l), w: r2(q.w), h: r2(h), rot: q.rot || 0, receptor: false };
+      const old = state.equip.find(o => o.tag === q.tag); if (old) Object.assign(old, e); else state.equip.push(e);
+    }
+    dlg.hidden = true; pv = null; renderInputs(); changed();
+    ulMsg(`Перенесено: молниеприёмников ${rods.length}, оборудования ${eqs.length}.`);
+    setTimeout(() => { fitAll(); drawPlan(); }, 400);
+  };
+}
+$('recClose').onclick = () => { $('recDlg').hidden = true; };
+$('recAll').onchange = e => $('recBody').querySelectorAll('input[data-i]:not(:disabled)').forEach(cb => { cb.checked = e.target.checked; });
+
+renderUnderlays();
+buildUnderlays3D();
+
+</script>
+
+</body></html>
