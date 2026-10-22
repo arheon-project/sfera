@@ -383,7 +383,8 @@ button.play { align-self: flex-start; }
           <button type="button" class="ghost play" id="onePlay">▶ Обкатить вокруг</button>
         </div>
         <div class="pane" id="pOrbit" hidden>
-          <p class="hint">Сфера катится по земле вокруг всей группы и касается крайних молниеприёмников.</p>
+          <p class="hint">Сфера катится по земле вокруг всей группы и касается крайних молниеприёмников. Затем закатывается на три вершины и по очереди скатывается на землю с каждой стороны.</p>
+          <label class="chk" style="display:flex;gap:6px;align-items:center;font-size:12.5px"><input type="checkbox" id="orbClimb" checked> подъём на три вершины и спуск по сторонам</label>
           <label class="f">Скорость <input type="range" id="orbSpeed" min="2" max="30" step="1" value="10"></label>
           <button type="button" class="ghost play" id="orbPlay">▶ Пуск</button>
         </div>
@@ -1385,28 +1386,99 @@ function buildOrbitPath() {
   for (let k = 1; k <= pts.length; k++) cum.push(cum[k - 1] + Math.hypot(pts[k % pts.length][0] - pts[k - 1][0], pts[k % pts.length][1] - pts[k - 1][1]));
   return { pts, cum, len: cum[cum.length - 1] };
 }
+// окружность центров сферы, касающейся вершин a и b: центр M, радиус rho, базис e1 (горизонталь), e2 (вверх)
+function creaseCircle(a, b, R) {
+  const A = new THREE.Vector3(a.x, a.y, a.h), B = new THREE.Vector3(b.x, b.y, b.h), AB = B.clone().sub(A), d = AB.length();
+  if (d < 1e-6 || d >= 2 * R) return null;
+  const M = A.clone().add(B).multiplyScalar(0.5), rho = Math.sqrt(R * R - d * d / 4);
+  const e1 = new THREE.Vector3(-AB.y, AB.x, 0); if (e1.length() < 1e-9) return null; e1.normalize();
+  const e2 = AB.clone().cross(e1).normalize(); if (e2.z < 0) e2.negate();
+  return { M, rho, e1, e2, at: th => M.clone().addScaledVector(e1, rho * Math.cos(th)).addScaledVector(e2, rho * Math.sin(th)),
+    angleOf: c => { const v = c.clone().sub(M); return Math.atan2(v.dot(e2), v.dot(e1)); } };
+}
+// центр сферы на трёх вершинах (верхний)
+function onThree(a, b, c, R) {
+  const A = new THREE.Vector3(a.x, a.y, a.h), B = new THREE.Vector3(b.x, b.y, b.h), C = new THREE.Vector3(c.x, c.y, c.h);
+  const u = A.clone().sub(C), v = B.clone().sub(C), n = u.clone().cross(v), n2 = n.lengthSq(); if (n2 < 1e-9) return null;
+  const O = C.clone().add(v.clone().multiplyScalar(u.lengthSq()).sub(u.clone().multiplyScalar(v.lengthSq())).cross(n).multiplyScalar(1 / (2 * n2)));
+  const r2c = O.distanceToSquared(A); if (r2c > R * R) return null;
+  n.normalize(); if (n.z < 0) n.negate();
+  return O.addScaledVector(n, Math.sqrt(R * R - r2c));
+}
+// сценарий обката: круг по земле, подъём на три вершины, спуск на землю по очереди с каждой стороны
+function buildOrbitShow() {
+  const lap = buildOrbitPath(); if (!lap) return null;
+  const { rods, R } = last, segs = [];
+  let tri = null;
+  if ($('orbClimb').checked && rods.length >= 3) {
+    for (let i = 0; i < rods.length; i++) for (let j = i + 1; j < rods.length; j++) for (let k = j + 1; k < rods.length; k++) {
+      const c = onThree(rods[i], rods[j], rods[k], R); if (!c || c.z < R) continue;
+      if (collisions(c, [i, j, k]).length) continue;
+      if (!tri || c.z < tri.c.z) tri = { ids: [i, j, k], c };
+    }
+  }
+  // спуск по паре (p, q) наружу от третьего стержня: углы от вершины-тройки до касания земли
+  const side = (p, q, o) => {
+    const cr = creaseCircle(rods[p], rods[q], R); if (!cr) return null;
+    const sn = (R - cr.M.z) / (cr.rho * cr.e2.z); if (Math.abs(sn) > 1) return null;
+    const out = cr.e1.dot(new THREE.Vector3(rods[o].x, rods[o].y, 0).sub(new THREE.Vector3(cr.M.x, cr.M.y, 0))) < 0 ? 1 : -1;
+    const thG = out > 0 ? Math.asin(sn) : Math.PI - Math.asin(sn);
+    let th3 = cr.angleOf(tri.c); if (Math.abs(th3 - thG) > Math.PI) th3 += th3 < thG ? 2 * Math.PI : -2 * Math.PI;
+    return { cr, th3, thG, len: cr.rho * Math.abs(th3 - thG), names: [rods[p].name, rods[q].name] };
+  };
+  let lapPts = lap.pts, sides = null;
+  if (tri) {
+    const [a, b, c] = tri.ids, s1 = side(a, b, c), s2 = side(b, c, a), s3 = side(c, a, b);
+    if (s1 && s2 && s3) {
+      sides = [s1, s2, s3];
+      // круг по земле начинаем и заканчиваем там, где сфера касается земли у пары a-b
+      const g = s1.cr.at(s1.thG); let best = 0, bd = Infinity;
+      lap.pts.forEach((p, n) => { const d = Math.hypot(p[0] - g.x, p[1] - g.y); if (d < bd) { bd = d; best = n; } });
+      lapPts = lap.pts.slice(best).concat(lap.pts.slice(0, best));
+    }
+  }
+  const cum = [0]; for (let k = 1; k <= lapPts.length; k++) cum.push(cum[k - 1] + Math.hypot(lapPts[k % lapPts.length][0] - lapPts[k - 1][0], lapPts[k % lapPts.length][1] - lapPts[k - 1][1]));
+  const lapLen = cum[cum.length - 1];
+  segs.push({ len: lapLen, kind: 'lap', at: t => {
+    const s = t * lapLen; let k = 1; while (k < cum.length - 1 && cum[k] < s) k++;
+    const a = lapPts[k - 1], b = lapPts[k % lapPts.length], u = (s - cum[k - 1]) / Math.max(1e-9, cum[k] - cum[k - 1]);
+    return new THREE.Vector3(a[0] + (b[0] - a[0]) * u, a[1] + (b[1] - a[1]) * u, R);
+  } });
+  if (sides) {
+    const arc = (sd, up) => ({ len: sd.len, kind: up ? 'up' : 'down', names: sd.names, at: t => { const u = up ? 1 - t : t; return sd.cr.at(sd.th3 + (sd.thG - sd.th3) * u); } });
+    const rest = { len: 12, kind: 'rest', at: () => tri.c.clone() };
+    segs.push(arc(sides[0], true), rest, arc(sides[1], false), arc(sides[1], true), rest, arc(sides[2], false), arc(sides[2], true), rest, arc(sides[0], false));
+  }
+  const starts = [0]; for (const sg of segs) starts.push(starts[starts.length - 1] + sg.len);
+  return { segs, starts, total: starts[starts.length - 1], lapPts, tri };
+}
 function updateOrbit() {
   if (!orbitPath) {
-    orbitPath = buildOrbitPath();
+    orbitPath = buildOrbitShow();
     clear(groups.path);
     if (orbitPath) {
       const dashed = new THREE.LineDashedMaterial({ color: col('--sphere'), dashSize: 0.8, gapSize: 0.5 });
-      groups.path.add(loopLine(orbitPath.pts, 0.06, dashed, true));
+      groups.path.add(loopLine(orbitPath.lapPts, 0.06, dashed, true));
     }
   }
   if (!orbitPath) return;
-  const { pts, cum, len } = orbitPath, s = ((orbitS % len) + len) % len;
-  let k = 1; while (k < cum.length - 1 && cum[k] < s) k++;
-  const a = pts[k - 1], b = pts[k % pts.length], t = (s - cum[k - 1]) / Math.max(1e-9, cum[k] - cum[k - 1]);
-  const c = new THREE.Vector3(a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, last.R);
-  sphere.position.copy(c); sphere.visible = true; paintSphere(false);
+  const { segs, starts, total } = orbitPath, s = ((orbitS % total) + total) % total;
+  let n = 0; while (n < segs.length - 1 && starts[n + 1] <= s) n++;
+  const sg = segs[n], t = (s - starts[n]) / Math.max(1e-9, sg.len), c = sg.at(t);
+  const tri = orbitPath.tri ? orbitPath.tri.ids : [];
+  sphere.position.copy(c); sphere.visible = true;
+  const bad = collisions(c, sg.kind === 'lap' ? [] : tri); paintSphere(bad.length > 0);
   const ct = contactsOf(c);
   showContacts(ct.pts);
-  const rodsTouched = ct.names.filter(n => n !== 'землю');
-  $('roT').textContent = 'Сфера катится по земле вокруг группы';
-  $('ro').innerHTML = `касается: ${esc(ct.names.map(n => n === 'землю' ? 'земли' : n).join(', ') || '—')}` + `<br>пройдено ${fL(s, 1)} из ${fL(len, 1)} ${UL()}` +
-    (rodsTouched.length > 1 ? '<br>сфера в «седле» между двумя стержнями' : '');
+  const R = last.R, low = c.z - R;
+  const phase = { lap: 'Сфера катится по земле вокруг группы', up: `Сфера закатывается по ${sg.names && sg.names.join(' и ')} на вершины`,
+    rest: 'Сфера лежит на трёх вершинах', down: `Сфера скатывается на землю между ${sg.names && sg.names.join(' и ')}` }[sg.kind];
+  $('roT').textContent = phase;
+  $('ro').innerHTML = `касается: ${esc(ct.names.map(q => q === 'землю' ? 'земли' : q).join(', ') || '—')}` +
+    (sg.kind === 'lap' ? `<br>пройдено ${fL(t * sg.len, 1)} из ${fL(sg.len, 1)} ${UL()}` : `<br>низ сферы на высоте ${fL(Math.max(0, low))} ${UL()}`) +
+    (bad.length ? '<br>' + status(bad) : '');
 }
+$('orbClimb').addEventListener('change', () => { orbitPath = null; orbitS = 0; if (mode === 'orbit') updateOrbit(); });
 function updatePinned() {
   if (!last) return;
   if (mode === 'two') updateTwo(); else if (mode === 'one') updateOne(); else if (mode === 'orbit') updateOrbit();
