@@ -97,7 +97,7 @@ main { position: relative; min-width: 0; min-height: 0; }
 #scene canvas { display: block; touch-action: none; }
 .hud { position: absolute; top: 12px; left: 12px; right: max(12px, env(safe-area-inset-right, 0px)); display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; pointer-events: none; }
 .hud > * { pointer-events: auto; }
-.card { background: color-mix(in srgb, var(--panel) 90%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; backdrop-filter: blur(6px); }
+.card { background: color-mix(in srgb, var(--panel) 95%, transparent); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .legend { display: flex; flex-direction: column; gap: 5px; font-size: 12px; }
 .legend i { display: inline-block; width: 18px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
 .views { display: flex; gap: 6px; flex-wrap: wrap; align-items: flex-start; }
@@ -986,8 +986,9 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 const host = document.getElementById('scene');
-const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
+// на экранах с увеличением рисуем не крупнее 1,5×: картинка почти та же, а пикселей вдвое меньше
+renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
 host.appendChild(renderer.domElement);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(40, 1, 0.5, 5000);
@@ -1545,8 +1546,10 @@ renderer.domElement.addEventListener('pointermove', e => {
   }
   if (mode !== 'free') return;
   lastP = [p.x, p.y];
-  updateFree();
+  // сферу под курсором пересчитываем не чаще одного раза за кадр
+  if (!freeRAF) freeRAF = requestAnimationFrame(() => { freeRAF = 0; updateFree(); invalidate3D(); });
 });
+let freeRAF = 0;
 renderer.domElement.addEventListener('pointerup', e => {
   if (dragIdx >= 0) { dragIdx = -1; controls.enabled = true; renderInputs(); return; }
   if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 4) return;
@@ -1787,6 +1790,7 @@ function setTab(t) {
   if (t !== '3d') { if (mode !== 'free') setMode('free'); stop(); }
   if (t === 'plan') { drawPlan(); $('roT').textContent = 'Наведите курсор на план'; $('ro').innerHTML = 'Колесо или + / − — масштаб, перетаскивание — сдвиг, клик — замер<br>стержень тяните мышью, клик по стержню — ввод X, Y'; }
   if (t === 'sec') drawSections();
+  if (t === '3d') invalidate3D();
 }
 $('tab3d').onclick = () => setTab('3d');
 $('tabPlan').onclick = () => setTab('plan');
@@ -1802,6 +1806,9 @@ function psize() { const r = plan.getBoundingClientRect(); return { w: r.width, 
 function fitPlan() { fitAll(); }
 const el = (tag, attrs, parent) => { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; };
 const pathOf = loops => loops.map(l => 'M' + l.map(p => p[0].toFixed(3) + ' ' + (-p[1]).toFixed(3)).join('L') + 'Z').join('');
+// при перетаскивании план перерисовывается не чаще одного раза за кадр экрана
+let planRAF = 0;
+function drawPlanSoon() { if (!planRAF) planRAF = requestAnimationFrame(() => { planRAF = 0; drawPlan(); }); }
 function drawPlan() {
   if (plan.hasAttribute('hidden') || !last) return;
   const { w, h } = psize();
@@ -1916,12 +1923,12 @@ plan.addEventListener('pointermove', e => {
       const q = pv.k > 40 ? 0.01 : pv.k > 8 ? 0.05 : 0.1;
       r.x = Math.round((wx + pdrag.off[0]) / q) * q; r.y = Math.round((wy + pdrag.off[1]) / q) * q;
       r.x = r2(r.x); r.y = r2(r.y);
-      syncRodInputs(r); changed(); drawPlan();
+      syncRodInputs(r); changed(); drawPlanSoon();
       $('roT').textContent = `Перемещение ${r.name}`;
       $('ro').innerHTML = `X ${fL(r.x)}, Y ${fL(r.y)} ${UL()}<br>сдвиг ΔX ${fL(r.x - pdrag.x0)}, ΔY ${fL(r.y - pdrag.y0)}`;
       return;
     }
-    if (pdrag.moved) { pv.cx = pdrag.cx - dx / pv.k; pv.cy = pdrag.cy + dy / pv.k; drawPlan(); return; }
+    if (pdrag.moved) { pv.cx = pdrag.cx - dx / pv.k; pv.cy = pdrag.cy + dy / pv.k; drawPlanSoon(); return; }
   }
   const hov = cutPick || alignPick ? null : rodAt(e);
   plan.style.cursor = hov ? 'move' : '';
@@ -2052,11 +2059,31 @@ function drawSections() {
 }
 new ResizeObserver(() => drawSections()).observe(sectionsBox);
 
-function resize() { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); }
+function resize() { const w = host.clientWidth, h = host.clientHeight; renderer.setSize(w, h); camera.aspect = w / Math.max(1, h); camera.updateProjectionMatrix(); if (typeof invalidate3D === 'function') invalidate3D(); }
 new ResizeObserver(resize).observe(host); resize();
-renderer.setAnimationLoop(now => { tick(now); controls.update(); renderer.render(scene, camera); });
+// кадр рисуется только когда что-то изменилось: камера, анимация, ввод, пересчёт.
+// В покое и на вкладках «План» и «Разрезы» видеокарта не занята.
+let dirty = 3, lastDraw = 0;
+const invalidate = () => { dirty = Math.max(dirty, 2); };
+window.invalidate3D = invalidate;
+for (const ev of ['pointerdown', 'pointerup', 'wheel', 'keydown', 'input', 'change', 'click'])
+  window.addEventListener(ev, invalidate, true);
+renderer.domElement.addEventListener('pointermove', invalidate);
+document.addEventListener('visibilitychange', invalidate);
+renderer.setAnimationLoop(now => {
+  tick(now);
+  if (host.style.visibility === 'hidden' || document.hidden) return;
+  const moved = controls.update();
+  // запасной редкий кадр раз в 2 с на случай изменения, о котором никто не сообщил
+  if (!moved && !playing && dirty <= 0 && now - lastDraw < 2000) return;
+  // анимация сферы идёт с частотой 30 кадров в секунду: глазу хватает, нагрузка вдвое ниже
+  if (playing && !moved && dirty <= 0 && now - lastDraw < 30) return;
+  if (dirty > 0) dirty--;
+  lastDraw = now;
+  renderer.render(scene, camera);
+});
 
-window.onResult = res => { build(res); drawPlan(); drawSections(); };
+window.onResult = res => { build(res); drawPlan(); drawSections(); invalidate(); };
 applyTheme();
 if (typeof result !== 'undefined' && result) { build(result); drawPlan(); }
 
